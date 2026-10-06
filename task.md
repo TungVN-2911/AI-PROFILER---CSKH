@@ -8,6 +8,10 @@
 
 - Phase 0 — Project Discovery: **COMPLETE** (2026-10-06) — approved by user (`APPROVED — START IMPLEMENTATION`, 2026-10-06); decisions D-1…D-7 accepted as recommended in plan.md §8
 - Phase 1 — Implementation: **COMPLETE** (2026-10-06) — all 20 tasks + BUG-001 DONE; see TASK-020 for the final checklist
+- Phase 2 — Change Request CR-001 (original brief review): approved items 1, 2, 5 **DONE** (TASK-021…TASK-023, 2026-10-06)
+- Phase 2 — Change Request CR-002 (Dr.Bee brand & product domain): **DONE** (TASK-024, 2026-10-06)
+- Phase 2 — Change Request CR-003 (remaining gaps): **DONE** (TASK-025, TASK-026, TASK-027 + BUG-003, 2026-10-06)
+- Phase 2 — Change Request CR-004 (Gemini provider): **DONE** (TASK-028 + BUG-002, 2026-10-06); verified live with the user's GEMINI_API_KEY
 
 ## Status Summary
 
@@ -34,8 +38,18 @@
 | TASK-019 | README | DONE | 018 |
 | TASK-020 | Final review & cleanup | DONE | 019 |
 | BUG-001 | Double punctuation after quoted fact text | DONE | (related TASK-012) |
+| TASK-021 | CR-001: no collectable image → PARTIAL_OR_PRIVATE | DONE | 020 |
+| TASK-022 | CR-001: perceived gender/age estimate from image (INFERENCE) | DONE | 021 |
+| TASK-023 | CR-001: forms of address chị/anh – em | DONE | 022 |
+| TASK-024 | CR-002: block Dr.Bee brand & product domain | DONE | 023 |
+| TASK-025 | CR-003: Vietnamese output text | DONE | 024 |
+| TASK-026 | CR-003: emotional quality of messages | DONE | 025, 028 |
+| TASK-027 | CR-003: tooling for consented real-profile runs | DONE | 026 |
+| TASK-028 | CR-004: Gemini LLM provider | DONE | 025 |
+| BUG-002 | Gemini default model overloaded (503/504); SDK AFC warning | DONE | (related TASK-028) |
+| BUG-003 | Guardrail false positives found in live Gemini drafts | DONE | (related TASK-011, TASK-026) |
 
-Counts: TODO 0 · IN_PROGRESS 0 · BLOCKED 0 · DONE 21 · SKIPPED 0
+Counts: TODO 0 · IN_PROGRESS 0 · BLOCKED 0 · DONE 31 · SKIPPED 0
 
 ---
 
@@ -1283,3 +1297,656 @@ Notes:
   ANTHROPIC_API_KEY was available. Covered by fake-client tests and SDK-shape checks; to verify, add the key to .env and
   run `python scripts/run_test_profiles.py` (case llm_mode_public_rich).
 - Nothing has been committed to git; committing is left to the user.
+
+---
+
+## TASK-021 — CR-001: no collectable image → PARTIAL_OR_PRIVATE
+
+Status: DONE
+Priority: HIGH
+Dependencies: TASK-020
+Requirements: FR-007, FR-009 (CR-001), original brief §4
+
+Goal:
+Follow the brief literally: if no public image can be collected or read, return PARTIAL_OR_PRIVATE instead of SUCCESS.
+
+Scope:
+- `VisualContextResult.available`; pipeline check after the gate → `NO_IMAGE: <reason>` (exit 0), before generation.
+- Fixtures: add a provided avatar description to `partial_thu_ha` and `declared_khanh_linh` so they keep testing their
+  own scenario; `no_image_quoc_bao` now expects `NO_IMAGE:`.
+- Update tests, scripts/run_test_profiles.py case text, README / fixtures README / architecture error rows.
+
+Acceptance Criteria:
+- [x] No image → `PARTIAL_OR_PRIVATE`, `error_note` starts with `NO_IMAGE:`; private / dead link keep their own prefixes.
+- [x] Image present but unreadable, or only an undescribed image in deterministic mode → `NO_IMAGE:`.
+- [x] Profiles with a usable image still reach SUCCESS; full test suite passes.
+
+Expected Files:
+- app/vision.py, app/pipeline.py, fixtures/profiles/*.json, tests/*, scripts/run_test_profiles.py, README.md, fixtures/README.md
+
+Test:
+- `python -m pytest -q`
+
+Completed:
+- app/vision.py: `VisualContextResult.available` (a kept provided description or ≥ 1 accepted vision observation).
+- app/pipeline.py step 5b: after the sufficiency gate, no available visual context → `PARTIAL_OR_PRIVATE`,
+  `NO_IMAGE: no public image could be collected or read (<reason>); …`, exit 0, before any message generation
+  (no LLM call is spent). Private / dead / login / insufficient keep their own prefixes (gate runs first).
+- Fixtures: `partial_thu_ha` now name + bio + avatar description (still exactly 2 usable facts, PARTIAL access,
+  8 messages; city removed); `declared_khanh_linh` gets an avatar description; `no_image_quoc_bao` → `NO_IMAGE:`.
+- scripts/run_test_profiles.py case text, README error table + pipeline sketch, fixtures/README rows updated.
+
+Files Changed:
+- app/vision.py, app/pipeline.py
+- fixtures/profiles/partial_thu_ha.json, fixtures/profiles/declared_khanh_linh.json, fixtures/README.md
+- tests/test_pipeline.py, tests/test_fixtures.py, tests/test_integration.py
+- scripts/run_test_profiles.py, README.md (+ requirements/architecture/plan via CR-001)
+
+Tests:
+- `python -m pytest -q` → 350 passed. New/changed: no image → NO_IMAGE (evidence keeps the 3-fact ledger);
+  undescribed image in deterministic mode → NO_IMAGE ("no vision model is configured"); unreadable image →
+  NO_IMAGE with zero LLM calls; all vision observations rejected → NO_IMAGE; accepted vision observation → SUCCESS;
+  quoc.bao fixture → NO_IMAGE in fixture + integration tests.
+- Manual sweep of all 8 fixtures: 4 SUCCESS (minh.anh 10, thu.ha 8, khanh.linh 10, profile.php 10), quoc.bao NO_IMAGE,
+  private PRIVATE_PROFILE, dead NOT_FOUND, name-only INSUFFICIENT_DATA.
+
+Result:
+PASS
+
+Notes:
+- test_results.json / output.json are regenerated once after TASK-023 (each run makes one real request to facebook.com).
+- Consequence: in deterministic mode only profiles with a provided image description can reach SUCCESS; an image
+  without description needs the vision model (API key).
+
+---
+
+## TASK-022 — CR-001: perceived gender/age estimate from image (INFERENCE)
+
+Status: DONE
+Priority: HIGH
+Dependencies: TASK-021
+Requirements: FR-008, A-07, D-3 (revised by CR-001)
+
+Goal:
+Fill `estimated_demographics` like the brief expects when no self-declared data exists, without presenting guesses as facts.
+
+Scope:
+- `VisionEstimate` in `VisionResult` (single person, perceived gender + confidence, age range + confidence); vision
+  instructions request it separately from observations.
+- Thresholds (gender ≥ 0.7; age width ≤ 15, 13–90, ≥ 0.6); accepted values → INFERENCE ledger entries
+  `perceived_gender` / `perceived_age` (non-grounding, never shown to the generator).
+- `app/intel.py` precedence self-declared → perceived → UNKNOWN; evidence grounding for gender / age.
+
+Acceptance Criteria:
+- [x] Confident single-person estimate → `INFERENCE: Female (perceived from avatar image, confidence 0.85) [F#]` style values.
+- [x] Low confidence / several people / wide range / no vision → `UNKNOWN`; self-declared data always wins.
+- [x] Estimates can never be cited by messages and never reach the LLM prompt.
+
+Expected Files:
+- app/llm/base.py, app/vision.py, app/models.py, app/intel.py, app/pipeline.py, app/schema.py, tests/*
+
+Test:
+- `python -m pytest -q`
+
+Completed:
+- app/llm/base.py: `VisionEstimate` (single_person_visible, perceived_gender female|male|unclear + confidence,
+  age_min/age_max + confidence) as optional `VisionResult.estimate`; vision instructions request it in a separate
+  field, never inside observations.
+- app/vision.py: one vision call serves both observations and the estimate; with a kept provided description the
+  call is made only for the estimate (if an avatar file/URL exists); `_apply_estimate` accepts only avatar images,
+  exactly one visible person, gender confidence ≥ 0.7, age range 13–90 / ≤ 15 years / confidence ≥ 0.6 → INFERENCE
+  entries `perceived_gender` / `perceived_age`, source `vision:avatar:estimate`; rejections recorded in notes.
+- app/models.py: categories `perceived_gender`, `perceived_age` (non-grounding → never citable, never in prompts).
+- app/intel.py: self-declared gender field → pronouns → perceived → UNKNOWN; stated birth year → perceived → UNKNOWN.
+  Labels: `INFERENCE: Female (perceived from avatar image, confidence 0.85) [F#]`,
+  `INFERENCE: 25–35 (apparent age from avatar image, confidence 0.70) [F#]`.
+- app/schema.py + app/pipeline.py: evidence `grounding.gender` / `grounding.estimated_age_range`.
+- README: example note, pipeline sketch and known limitation rewritten for labelled estimates.
+
+Files Changed:
+- app/llm/base.py, app/vision.py, app/models.py, app/intel.py, app/schema.py, app/pipeline.py, README.md
+- tests/test_vision.py (+13), tests/test_intel.py (+5), tests/test_pipeline.py (+1), tests/test_integration.py (invariant)
+
+Tests:
+- `python -m pytest -q` → 368 passed (18 new).
+- Covered: confident estimate → two INFERENCE entries, not usable, not in visual_context; 7 threshold cases (low
+  gender confidence, unclear, wide range, low age confidence, implausible age, missing age, several people);
+  non-avatar image; unusable image; provided description + avatar file → one vision call for the estimate only;
+  estimate call failure keeps the description; intel labels; self-declared beats perceived (gender field, pronouns,
+  birth year); implausible birth year falls back to perceived age; end-to-end pipeline: labelled demographics,
+  evidence grounding categories, estimate ids never cited and never present in any generation prompt.
+- Offline: `anthropic.transform_schema` accepts the extended `VisionResult`.
+
+Result:
+PASS (fake vision client). A real vision estimate is NOT VERIFIED (no API key) — same gap as TASK-008/009.
+
+Notes:
+- All repository fixtures use provided descriptions without image files, so their demographics stay UNKNOWN
+  unless self-declared (khanh.linh). The estimate path is exercised with the fake client.
+
+---
+
+## TASK-023 — CR-001: forms of address chị/anh – em
+
+Status: DONE
+Priority: HIGH
+Dependencies: TASK-022
+Requirements: FR-017
+
+Goal:
+Use natural Vietnamese CSKH forms of address for the brief's audience instead of always "bạn/mình".
+
+Scope:
+- `Addressing` derived in `app/intel.py` (gender field / pronouns / confident perceived gender → chị|anh + em; else bạn + mình).
+- Deterministic templates parameterised; LLM user prompt states the forms of address; evidence records them.
+
+Acceptance Criteria:
+- [x] Self-declared female fixture → "chị"/"em", no "bạn"; male → "anh"/"em"; unknown → "bạn"/"mình".
+- [x] All generated drafts still pass the guardrails; full test suite passes.
+
+Expected Files:
+- app/intel.py, app/generation/*.py, app/pipeline.py, app/schema.py, tests/*
+
+Test:
+- `python -m pytest -q`
+
+Completed:
+- app/intel.py: `Addressing(customer, agent, basis)` + `derive_addressing` — gender field (Nữ/Nam/…) → chị|anh + em;
+  else pronouns she/her → chị, he/him → anh, others → bạn; else confident perceived gender → chị|anh; else
+  bạn + mình. Carried on `Intelligence.addressing`.
+- app/generation/deterministic.py: all templates use {you}/{You}/{me}/{Me}; quoted fact text is inserted last via a
+  private-use placeholder, so the customer's own words (incl. "bạn", "mình", braces) are never rewritten. Polite
+  greeting "Em chào chị <given name>, em rất vui được làm quen với chị ạ!" (given name = last two words of 3+ word
+  names); neutral greeting unchanged.
+- Fixed latent bug found while doing this: `.format(s=…)` crashed on fact text containing "{" or "}".
+- app/guardrails.py: NEUTRAL_CLAIM no longer treats "em" as the customer ("em rất vui" is the agent speaking).
+- app/generation/prompts.py / llm_generator.py: system prompt rule 5 now defers to the user prompt; the user prompt
+  states the forms of address (+ polite "ạ" register for chị/anh); addressing passed to LLM and fallback.
+- app/pipeline.py + app/schema.py: generation uses `intel.addressing`; evidence field `addressing`
+  (e.g. "chị/em (self-declared gender field [F8])").
+- scripts/run_test_profiles.py: new case `self_declared_female`; README + fixtures/README updated.
+
+Files Changed:
+- app/intel.py, app/generation/deterministic.py, app/generation/prompts.py, app/generation/llm_generator.py,
+  app/guardrails.py, app/pipeline.py, app/schema.py
+- tests/test_intel.py (+9), tests/test_generation_deterministic.py (+4), tests/test_generation_llm.py (+2),
+  tests/test_guardrails.py (+1), tests/test_pipeline.py (+2)
+- scripts/run_test_profiles.py, README.md, fixtures/README.md, test_results.json, output.json, evidence.json
+
+Tests:
+- `python -m pytest -q` → 386 passed (18 new); pyflakes clean (temporary install, removed).
+- Covered: 7 self-declared addressing cases; perceived male → anh; gender field and pronouns beat perceived;
+  chị and anh drafts pass all guardrails with no standalone "bạn"/"mình" and the expected greeting; neutral draft
+  unchanged; quoted "Cảm ơn các bạn … {sinh nhật} của mình!" kept verbatim and no crash; prompt states the forms of
+  address; addressing reaches LLM prompts and fallback; "em rất vui" not a NEUTRAL_CLAIM while "Chị thích …" is;
+  khanh.linh end-to-end → chị/em; minh.anh → bạn/mình.
+- `python scripts/run_test_profiles.py` → 8 cases: 7 PASS, 0 FAIL, 1 NOT_RUN (LLM, no key); public_no_image →
+  NO_IMAGE; self_declared_female → "Em chào chị Khánh Linh, …"; no double punctuation in artifacts.
+
+Result:
+PASS
+
+Notes:
+- Perceived gender (TASK-022) can be wrong; when it drives "chị/anh" the basis is recorded in evidence.json so an
+  operator can correct it before sending.
+- Two script runs in this phase made two more unauthenticated requests to facebook.com/facebook (LOGIN_REQUIRED).
+
+---
+
+## TASK-024 — CR-002: block Dr.Bee brand & product domain
+
+Status: DONE
+Priority: HIGH
+Dependencies: TASK-023
+Requirements: FR-011, C-005 (CR-002), original brief §2
+
+Goal:
+Guarantee that no rapport message, hook or empathy angle mentions Dr.Bee or steers toward its product domain.
+
+Scope:
+- Lexicons: brand pattern (spelling variants), hard product-topic terms (absolute), soft terms (allowed only when cited verbatim).
+- Guardrails: `BRAND_MENTION`, `PRODUCT_TOPIC`; brand and hard terms ignore the cited-fact exemption.
+- Prompt: static rule naming the brand/product domain; facts containing them are excluded from `<facts>`.
+- Tests: spelling variants, vi/en product terms, cited-fact behaviour, no false positives on fixtures / "Bee" nickname,
+  LLM draft mentioning the brand rejected end-to-end, deterministic generator never quotes such facts.
+
+Acceptance Criteria:
+- [x] "Dr.Bee" in any listed spelling → `BRAND_MENTION`, even when a cited fact contains it.
+- [x] Hard product terms → `PRODUCT_TOPIC` even when cited; soft terms only without a supporting citation.
+- [x] No false positive on any repository fixture fact; full test suite passes.
+
+Expected Files:
+- app/lexicons.py, app/guardrails.py, app/generation/prompts.py, tests/*
+
+Test:
+- `python -m pytest -q`
+
+Completed:
+- app/lexicons.py: `BRAND_PATTERN` (Dr.Bee / Dr. Bee / DrBee / dr bee / DR.BEE / Dr-Bee / Doctor Bee / Bác sĩ Bee; "Bee"
+  alone is not matched), `PRODUCT_TOPIC_HARD` (vi/en hair & scalp problems, hair-care products, serum),
+  `PRODUCT_TOPIC_SOFT` (tóc, mỹ phẩm, dược sĩ, điều trị, beauty, pharmacist…), helpers `find_brand_mentions`,
+  `find_product_terms`, `has_blocked_topic`.
+- app/guardrails.py `check_text`: `BRAND_MENTION` and hard `PRODUCT_TOPIC` are absolute (no cited-fact exemption);
+  soft terms only when verbatim in a cited fact.
+- app/generation/prompts.py: system rule 1 names "Dr.Bee" and the hair/scalp/cosmetic/pharma product domain; facts
+  containing the brand or a hard term are omitted from the `<facts>` block.
+- README: "No brand, no product talk" bullet.
+
+Files Changed:
+- app/lexicons.py, app/guardrails.py, app/generation/prompts.py, README.md
+- tests/test_guardrails.py (+19), tests/test_generation_llm.py (+2), tests/test_generation_deterministic.py (+1),
+  tests/test_integration.py (+1)
+- requirements.md, architecture.md, plan.md, task.md (CR-002)
+
+Tests:
+- `python -m pytest -q` → 409 passed (23 new); pyflakes clean (temporary install, removed).
+- Covered: 8 brand spellings; brand blocked even when the customer's bio mentions it; "Bee" nickname not blocked;
+  6 hard product phrases (vi/en); hard term blocked even when cited; soft term "dược sĩ" allowed only with the
+  pharmacist work fact, "mái tóc" compliment blocked; no false positive on any fixture fact; LLM draft with
+  "Dr.Bee … da đầu" rejected → deterministic fallback without them; prompt forbids the brand and omits brand/hair
+  facts; deterministic generator never quotes brand/hair facts; end-to-end hook "dầu gội Dr.Bee phục hồi nang tóc"
+  never reaches output and ZERO_SALES_CONFIRMED stays truthful.
+- output.json and all fixture outputs in test_results.json re-computed and identical → artifacts not regenerated
+  (no extra request to facebook.com).
+
+Result:
+PASS
+
+Notes:
+- Compliments on hair ("mái tóc đẹp quá") are blocked on purpose: for a hair-care brand they are a pre-sales opener.
+- The brand list is Dr.Bee-specific by design (original brief); reuse for another brand = edit app/lexicons.py.
+
+---
+
+## TASK-025 — CR-003: Vietnamese output text
+
+Status: DONE
+Priority: HIGH
+Dependencies: TASK-024
+Requirements: FR-018
+
+Goal:
+Make every human-readable output/evidence text Vietnamese like the brief, keeping machine-readable code prefixes.
+
+Scope:
+- Translate input errors, config/usage errors, source errors, gate notes, live-fetch notes, synthetic/no-data notes,
+  visual-context labels and reasons, demographic labels, pipeline notes, fixture access notes, test-run data note.
+- Update tests that assert on English fragments; README examples.
+
+Acceptance Criteria:
+- [x] All fixture outputs and error notes read in Vietnamese after their code prefix.
+- [x] Code prefixes unchanged; full test suite passes.
+
+Expected Files:
+- app/*.py, app/sources/*.py, fixtures/profiles/*.json, scripts/run_test_profiles.py, tests/*, README.md
+
+Test:
+- `python -m pytest -q`
+
+Completed:
+- Vietnamese text (code prefixes unchanged) in: app/input.py (13 URL errors), app/config.py, app/cli.py (usage
+  errors), app/llm (missing key), app/ledger.py (gate notes, e.g. "PRIVATE_PROFILE: Trang cá nhân bị khóa riêng tư…"),
+  app/sources/base.py (synthetic / no-data notes), app/sources/live_meta.py (scope, login, 404, timeout, redirect),
+  app/sources/provided.py (file/store errors), app/pipeline.py (NO_IMAGE, INSUFFICIENT_DATA, INTERNAL_ERROR),
+  app/generation (generator errors), app/vision.py (labels "MÔ TẢ ẢNH (từ dữ liệu được cung cấp):",
+  "QUAN SÁT ẢNH BẰNG AI (ảnh đại diện; do mô hình tạo, chưa kiểm chứng):", NOT_AVAILABLE reasons, notes; observations
+  requested in Vietnamese "Ảnh có vẻ cho thấy…"), app/intel.py ("Nữ / Nam", "29–30 tuổi (tính từ năm sinh tự khai báo …)",
+  "INFERENCE: Nữ (ước lượng từ ảnh đại diện, độ tin cậy 0.85) [F#]", lifestyle "INFERENCE: đời sống thường ngày có vẻ
+  gắn với sở thích: …; công việc: … (dựa trên F…)", addressing basis).
+- Fixture access notes and the test-run data note translated; README examples + error-handling note updated.
+
+Files Changed:
+- app/input.py, app/config.py, app/cli.py, app/llm/__init__.py, app/llm/anthropic_client.py, app/ledger.py,
+  app/sources/base.py, app/sources/live_meta.py, app/sources/provided.py, app/pipeline.py,
+  app/generation/llm_generator.py, app/generation/deterministic.py, app/vision.py, app/intel.py
+- fixtures/profiles/{partial_thu_ha,name_only,private_user,dead_link}.json, scripts/run_test_profiles.py, README.md
+- tests/* (string expectations only; 86 assertions updated, no logic change)
+
+Tests:
+- `python -m pytest -q` → 409 passed.
+- Manual sweep: every fixture output / error note / evidence limitation reads in Vietnamese after its code prefix
+  (minh.anh, khanh.linh, quoc.bao NO_IMAGE, private, dead link, name-only, unknown profile, invalid URL).
+
+Result:
+PASS
+
+Notes:
+- argparse's own messages ("unrecognized arguments …") stay English inside the Vietnamese wrapper.
+- Artifacts (output.json, evidence.json, test_results.json) are regenerated once at the end of CR-003.
+
+---
+
+## TASK-026 — CR-003: emotional quality of messages
+
+Status: DONE
+Priority: HIGH
+Dependencies: TASK-025, TASK-028 (live model for verification)
+Requirements: FR-019
+
+Goal:
+Messages that feel warm and sincere (the brief's main evaluation criterion) without giving up grounding.
+
+Scope:
+- Guardrails: grounded family terms, work-grounded evening phrases, AI vision observations citable (estimates not).
+- Deterministic templates rewritten for warmth; avatar-aware greeting; empathetic closings.
+- LLM system prompt style guide (brief §2 tone); prompt lists vision observations as tentative.
+
+Acceptance Criteria:
+- [x] Brief hook examples pass when grounded, fail without grounding.
+- [x] Template output: avatar-aware greeting, no repeated openings, all guardrails pass on every fixture.
+- [x] Full test suite passes.
+
+Expected Files:
+- app/guardrails.py, app/lexicons.py, app/generation/*.py, tests/*
+
+Test:
+- `python -m pytest -q`
+
+Notes:
+- Session stopped (usage limit) right after analysis; NO code changed for this task yet. Test suite at 409 passed.
+- Set back from IN_PROGRESS to TODO (2026-10-06): no code had been written; CR-004 (Gemini) is done first so this task
+  can be verified with a live model.
+- Planned design (to implement next):
+  - guardrails: family-category sensitive terms tolerated when a cited fact contains a family-category term; add
+    "cả nhà", "các bé", "con cái", "các con", "em bé", "bé nhà", "con nhỏ" to the family list; work presumptions
+    ("sau giờ làm", "tan làm", "đi làm về", "sau một ngày", "áp lực") tolerated when a work fact is cited;
+    `visual_observation` INFERENCE becomes citable in `_resolve` (perceived_* stay blocked).
+  - Addressing.fields(): add `q` (" ạ" for chị/anh, "" for bạn).
+  - deterministic.py: warmer templates; avatar-aware greeting citing the first visual_observation fact (dropped from
+    candidates); hook "Buổi tối an lành nhé {you}! …" + work variant "… sau giờ làm việc với “{s}” …"; closing without
+    "{you} là/đã" (NEUTRAL_CLAIM).
+  - prompts.py: static tone/style section from the brief; list AI vision observations as "mention tentatively".
+  - Update tests that assert old greeting/template wording; regenerate artifacts + README examples at end of CR-003.
+
+Completed:
+- Guardrails: family-category terms tolerated when a cited fact contains a family-category term (+ "cả nhà", "các bé",
+  "bé nhà", "con cái", "các con", "em bé", "con nhỏ" now flagged when ungrounded); WORK_PRESUMPTIONS ("sau giờ làm",
+  "tan làm", "đi làm về", "sau một ngày", "áp lực") tolerated with a cited work fact ("mệt mỏi", "chắc hẳn"… still
+  rejected); `visual_observation` INFERENCE citable (perceived_* still rejected); cited facts' sources count as
+  grounding text for numbers (post dates).
+- Addressing.fields(): `q` = " ạ" for chị/anh.
+- Deterministic generator: avatar-aware grounded greeting (cites name + image fact, image not repeated later), warmer
+  post / interest / bio / work / education / hometown / city / image templates, warmer neutral questions and closing,
+  hook "Buổi tối an lành nhé {you}! …" and work hook "… sau giờ làm việc với “…” …", angle "Trân trọng những niềm vui và
+  nỗ lực …".
+- LLM prompt: static "Tone" section from the brief (người bạn tâm giao, avatar first impression, no "…đúng không?",
+  full message count, no unseen-photo remarks, grounded family/work evening wishes, no clock time, tentative AI image
+  facts); AI vision observations listed as "AI-perceived, mention tentatively"; perceived estimates never listed.
+- README (tone bullet, limitations), fixtures/README (thu.ha 7 messages).
+
+Files Changed:
+- app/guardrails.py, app/lexicons.py, app/intel.py, app/generation/deterministic.py, app/generation/prompts.py
+- tests/test_guardrails.py (+3, 1 replaced), tests/test_generation_deterministic.py (+2, 5 updated),
+  tests/test_generation_llm.py (+1, 1 updated); README.md, fixtures/README.md
+
+Tests:
+- `python -m pytest -q` → 454 passed.
+- Brief examples: "bữa cơm tối gia đình… các bé" passes with a family post cited, fails without; "thư giãn sau giờ làm
+  việc" passes with a work fact, fails without; "mệt mỏi" still rejected with a work fact; post date "28/09" grounded.
+- Live Gemini (user's key, synthetic fixtures, outputs in git-ignored runs/live/):
+  - minh.anh: served by gemini-3.5-flash; attempt 1 rejected (presumptions "chắc hẳn", "tối nay bạn có", a neutral
+    claim) → attempt 2 SUCCESS; greeting mentions the avatar tentatively; hook "Sau giờ làm việc tại Studio Lá Xanh,
+    chúc bạn có một buổi tối thật thư giãn và bình yên nhé."
+  - khanh.linh: gemini-3.5-flash overloaded → served by gemini-3.5-flash-lite on attempt 1; chị/em with "ạ";
+    "Em rất ngưỡng mộ sự kiên trì của chị khi tập xong bài ukulele đầu tiên trọn vẹn dù ngón tay hơi đau."
+
+Result:
+PASS
+
+Notes:
+- Known residual: subtle presumptions (hook "bên giai điệu ukulele quen thuộc") pass rule-based checks; documented
+  in README limitations. Live LLM runs may return fewer than 10 messages (allowed 5–10).
+
+---
+
+## TASK-027 — CR-003: tooling for consented real-profile runs
+
+Status: DONE
+Priority: MEDIUM
+Dependencies: TASK-026
+Requirements: FR-020
+
+Goal:
+Let the user run the brief's "3 real Facebook links" test with consented data, without the agent scraping anything.
+
+Scope:
+- `scripts/new_profile.py --url URL [--out FILE]`: writes a fill-in template (validated format, synthetic=false,
+  collection_method=manual_export, consent reminder).
+- `scripts/run_test_profiles.py --profiles-dir DIR [--results FILE]`: runs each profile file through the CLI; results
+  default to `runs/test_results_real.json` (git-ignored).
+- README section "Running on real profiles (with consent)".
+
+Acceptance Criteria:
+- [x] Template file loads with `load_raw_profile` and runs (PARTIAL until filled in).
+- [x] Batch run over a directory writes results under runs/ and never touches committed artifacts.
+- [x] Full test suite passes.
+
+Expected Files:
+- scripts/new_profile.py, scripts/run_test_profiles.py, tests/test_scripts.py, README.md
+
+Test:
+- `python -m pytest -q`
+
+Completed:
+- scripts/new_profile.py: `--url` (validated, canonical), `--out` (default runs/real/<username|id>.json), `--force`;
+  writes a template that loads with `load_raw_profile` (synthetic=false, collection_method=manual_export, avatar slot)
+  and prints Vietnamese fill-in instructions incl. consent and Gemini free-tier privacy notes; refuses to overwrite.
+- scripts/run_test_profiles.py: `--profiles-dir DIR [--results FILE] [--runs-dir DIR]` runs every profile file through
+  the CLI (`--url` from the file + `--profile-file`), writes runs/test_results_real.json by default with a consent data
+  note, never touches committed artifacts; unreadable files are recorded as FAIL; default mode unchanged.
+  NOT_RUN reason now names both keys; LLM case purpose provider-neutral.
+- README: "Running on real profiles (with consent)" section, refreshed template example, limitations updated
+  (committed data synthetic, live Gemini verification, free-tier overload).
+
+Files Changed:
+- scripts/new_profile.py (new), scripts/run_test_profiles.py, tests/test_scripts.py (new, 4 tests), README.md
+
+Tests:
+- `python -m pytest -q` → 458 passed; pyflakes clean.
+- tests/test_scripts.py: template valid + canonical URL; no overwrite without --force; invalid URL → exit 2;
+  batch over {filled, template, broken} → PASS SUCCESS / PASS INSUFFICIENT_DATA / FAIL, exit 1, committed artifacts'
+  mtimes unchanged; missing folder → exit 2.
+- Live regeneration (GEMINI_MODEL=gemini-3.5-flash, user's key): 8 cases, 8 PASS, 0 NOT_RUN (llm case now runs).
+
+Result:
+PASS
+
+Notes:
+- The live regeneration exposed guardrail false positives (public_rich fell back to templates after 3 rejected
+  Gemini drafts) → BUG-003. Artifacts are regenerated again after that fix.
+
+---
+
+---
+
+## TASK-028 — CR-004: Gemini LLM provider
+
+Status: DONE
+Priority: HIGH
+Dependencies: TASK-025
+Requirements: FR-015 (CR-004), NFR-005
+
+Goal:
+Run the LLM path (vision + generation) on Gemini, which has a free tier, behind the existing `LLMClient` protocol.
+
+Scope:
+- `app/llm/gemini_client.py` (google-genai SDK; structured JSON output; images; finish-reason / block checks; error mapping).
+- Settings `LLM_PROVIDER`, `GEMINI_API_KEY`, `GEMINI_MODEL`; factory provider resolution; `--mode llm` message.
+- requirements.txt, .env.example, README (setup, privacy note on free tier), test-run script environment info.
+- Offline tests with a stubbed SDK client; provider-isolation test extended to `google.genai`.
+
+Acceptance Criteria:
+- [x] Only `gemini_client.py` imports `google.genai`; only `anthropic_client.py` imports `anthropic`.
+- [x] Factory: Gemini-only key → Gemini client; both keys + auto → Claude; `LLM_PROVIDER=gemini` → Gemini; missing key in
+      `--mode llm` → clear error naming both variables.
+- [x] Adapter: request shape (model, system instruction, JSON schema without `$ref`), image part, refusal / max-tokens /
+      blocked prompt / invalid JSON / SDK errors mapped to `LLMError`.
+- [ ] (Manual, if the user provides `GEMINI_API_KEY`) one live structured call succeeds — otherwise recorded as not verified.
+  → VERIFIED 2026-10-06 with the user's key (see BUG-002): live structured calls succeed; full CLI run in --mode llm → SUCCESS.
+
+Expected Files:
+- app/llm/gemini_client.py, app/llm/__init__.py, app/config.py, requirements.txt, .env.example, README.md,
+  scripts/run_test_profiles.py, tests/test_llm_gemini.py, tests/test_llm_adapter.py, tests/test_config.py
+
+Test:
+- `python -m pytest -q`
+
+Completed:
+- app/llm/gemini_client.py: official `google-genai` SDK (2.28.0 installed); `models.generate_content` with
+  `system_instruction`, `response_mime_type="application/json"`, `response_json_schema` (Pydantic schema, `$ref`/`$defs`
+  inlined by `inline_schema`), `max_output_tokens=16000`; images via `types.Part.from_bytes` (jpeg/png/webp); prompt block
+  and finish reasons (SAFETY, PROHIBITED_CONTENT, BLOCKLIST, SPII, RECITATION, IMAGE_* → refusal; MAX_TOKENS → max_tokens)
+  checked before Pydantic validation; thought parts ignored; ClientError 401/403 → auth, 429 → rate_limited, other
+  API errors → api_error, httpx timeout → timeout; timeout from settings (ms).
+- app/config.py: `LLM_PROVIDER` (auto|anthropic|gemini), `GEMINI_API_KEY` (SecretStr), `GEMINI_MODEL`
+  (default `gemini-3.8-flash`, verified on ai.google.dev: current GA model with a free tier);
+  `resolved_provider`, `has_*_credentials`, `active_model`.
+- app/llm/__init__.py: provider resolution; `--mode llm` error names both keys and the configured provider.
+- requirements.txt (+google-genai>=2.0), .env.example, README (setup, env table, provider isolation, privacy note),
+  scripts/run_test_profiles.py (records provider + model).
+
+Files Changed:
+- app/llm/gemini_client.py (new), app/llm/__init__.py, app/llm/anthropic_client.py, app/config.py
+- requirements.txt, .env.example, README.md, scripts/run_test_profiles.py
+- tests/test_llm_gemini.py (new, 27 tests), tests/test_llm_adapter.py (isolation test per SDK), tests/test_config.py (+1)
+- requirements.md, architecture.md, plan.md, task.md (CR-004)
+
+Tests:
+- `python -m pytest -q` → 438 passed (29 new); pyflakes clean (temporary install, removed).
+- Covered: request shape, `$ref`-free schemas for EngagementDraft / VisionResult, image part, unsupported image type,
+  SAFETY / PROHIBITED_CONTENT / MAX_TOKENS / blocked prompt / no candidates / bad JSON / schema mismatch / empty text,
+  7 SDK error mappings, missing key, offline client construction (network guard), factory selection (Gemini only,
+  both keys auto → Claude, explicit gemini, explicit provider without key), config defaults / invalid provider /
+  hidden key, only one module per provider SDK.
+
+Result:
+PASS (offline). Live Gemini call NOT VERIFIED (no key available).
+
+Notes:
+- Privacy: Gemini free-tier content may be used by Google to improve its products (pricing page) — documented in
+  README; use synthetic / consented data on the free tier.
+- To verify: add `GEMINI_API_KEY=...` to `.env` (git-ignored) and run `python scripts/run_test_profiles.py`.
+
+---
+
+## BUG-002 — Gemini default model overloaded (503/504); SDK AFC warning
+
+Status: DONE
+Priority: HIGH
+Related Task: TASK-028
+Dependencies: None
+
+Problem:
+First live run with the user's GEMINI_API_KEY (2026-10-06): `gemini-3.8-flash` returned HTTP 504 "Deadline expired",
+then 503 "high demand" after 72 s; `gemini-3.5-flash` returned 503 in 6 s. `gemini-3.5-flash-lite` answered in 1–2 s and
+returned a valid `EngagementDraft` with the inlined schema. The SDK also logged an "automatic function calling" warning.
+
+Expected:
+The LLM path keeps working when one Gemini model is overloaded or out of quota, the evidence names the model that
+actually answered, and no SDK warning is emitted.
+
+Fix:
+- Model chain `GEMINI_MODEL` + `GEMINI_FALLBACK_MODELS` (default `gemini-3.5-flash,gemini-3.5-flash-lite`); move to the
+  next model on 5xx / timeout / 429 / 404; a failed model is skipped for the rest of the run; auth errors never fall back.
+- `model_id` reflects the model that served the last successful call; generation records it after the attempts.
+- `automatic_function_calling.disable=True` in the request config.
+
+Acceptance Criteria:
+- [x] 503 on the primary → fallback model answers; later calls skip the failed model; 401 does not fall back.
+- [x] Evidence `model_id` = serving model; no AFC warning; full test suite passes.
+- [x] Live run of the rich fixture in `--mode llm` completes with Gemini.
+
+Completed:
+- app/llm/gemini_client.py: model chain loop; `_classify` maps errors to (LLMError, fall back?) — 5xx, timeout, 429,
+  404, connection errors fall back; 401/403 and other 4xx do not; failed models are skipped for the rest of the run;
+  `model_id` = serving model; `automatic_function_calling.disable=True`.
+- app/config.py: `GEMINI_FALLBACK_MODELS` (default `gemini-3.5-flash,gemini-3.5-flash-lite`), `gemini_model_chain`
+  (ordered, de-duplicated); `PROFILER_NO_DOTENV=1` skips `.env`.
+- app/generation/llm_generator.py: records the serving model after the attempts.
+- Found while fixing: with a real key in `.env`, CLI subprocess tests called the live API (suite hung > 300 s).
+  tests/conftest.py now sets `PROFILER_NO_DOTENV=1` and removes LLM env vars for every test (subprocesses inherit it);
+  CLI env helpers also strip `GEMINI_*`.
+- .env.example / README: `GEMINI_FALLBACK_MODELS`.
+
+Files Changed:
+- app/llm/gemini_client.py, app/config.py, app/generation/llm_generator.py, .env.example, README.md
+- tests/conftest.py, tests/test_config.py (+1, 1 adjusted), tests/test_cli.py, tests/test_integration.py,
+  tests/test_llm_gemini.py (+9)
+
+Tests:
+- `python -m pytest -q` → 448 passed in 17 s with a real key present in `.env` (proves hermetic tests).
+- Live (user's key, synthetic fixture data only): direct calls — 3.8-flash 504/503, 3.5-flash 503, 3.5-flash-lite OK in
+  1–2 s with a valid `EngagementDraft`; CLI `python main.py --url …fixture.minh.anh --mode llm` → exit 0, SUCCESS,
+  generation_mode llm, served by `gemini-3.5-flash` after 3.8-flash returned 503; attempt 1 rejected by guardrails
+  (5 UNGROUNDED_NUMBER: "20:00" in the hook, post date "28/09/2026"), attempt 2 accepted; ZERO_SALES_CONFIRMED; 78 s total
+  (≈ 60 s waiting for the overloaded primary). Outputs kept in git-ignored runs/live/.
+
+Result:
+PASS
+
+Notes:
+- Free-tier demand fluctuates; to skip the overloaded primary set `GEMINI_MODEL=gemini-3.5-flash` in `.env`.
+- The live draft is grounded but still plain (no avatar greeting, "…đúng không?" questions, 8 messages, "trông … hấp dẫn"
+  implies a photo it never saw) → input for TASK-026.
+
+---
+
+## BUG-003 — Guardrail false positives found in live Gemini drafts
+
+Status: DONE
+Priority: HIGH
+Related Task: TASK-011, TASK-026
+Dependencies: None
+
+Problem:
+During the live regeneration (2026-10-06) the `public_rich` case rejected 3 Gemini drafts and fell back to templates.
+Some rejections were wrong:
+- PRICE `'3 đ'` for "mẻ bánh thứ 3 đã…" — the unit `đ` matched the first letter of "đã" (same risk for "củ" in "3 củ khoai").
+- SENSITIVE_TERM `'người yêu'` for "người yêu thích chạy bộ" ("a person who likes running", not "lover").
+- PRESUMPTION `'tối nay bạn có'` in a question ("Tối nay bạn có định … không?") — asking is not presuming.
+- PRESUMPTION `'bạn đang làm'` when a work fact is cited ("công việc bạn đang làm").
+Correct rejections ("chắc hẳn") must stay.
+
+Expected:
+No false positive for the cases above; real prices ("199k", "3đ", "1.500.000đ"), "người yêu" meaning a lover, and
+presumptive statements ("chắc hẳn", "Tối nay bạn có hẹn…") are still rejected.
+
+Fix:
+- PRICE_PATTERN: `đ` / `củ` units only when not followed by a letter.
+- find_sensitive: "người yêu" not counted when followed by thích / quý / mến / thương / chuộng / cầu.
+- Presumptions: "tối nay {pronoun} có/định" tolerated inside a question sentence; "{pronoun} đang làm" tolerated with a
+  cited work fact.
+
+Acceptance Criteria:
+- [x] Each false positive above has a regression test that passes; true positives still detected.
+- [x] Full suite passes; artifacts regenerated with live Gemini.
+
+Completed:
+- app/lexicons.py: PRICE units `đ` / `củ` only when no letter follows; "người yêu" counted as a relationship only in a
+  lover context (end of phrase, punctuation, or before của / cũ / mới / mình / tôi / em / anh / chị / bạn / ấy …) —
+  the first fix (excluding only "yêu thích/quý/…") was too narrow: the next live run hit "người yêu <activity>" in
+  `apparent_lifestyle`.
+- app/guardrails.py: presumptions evaluated per sentence; "tối nay <pronoun> có/định" tolerated in a question;
+  "<pronoun> đang làm" tolerated with a cited work fact.
+- app/generation/prompts.py: rule 2 lists the assumptive phrases the validator rejects ("chắc hẳn", "chắc là bạn…",
+  "tối nay bạn sẽ…", "sau một ngày dài", "mệt mỏi") — gemini-3.5-flash-lite kept using "chắc hẳn" despite feedback.
+- tests/test_guardrails.py: 4 false-positive regressions, 6 true-positive checks, 6 "người yêu" context cases; one
+  TASK-011 case changed from a question to an assertion ("Tối nay bạn sẽ … đấy.") because asking is now allowed.
+
+Files Changed:
+- app/lexicons.py, app/guardrails.py, app/generation/prompts.py, tests/test_guardrails.py
+- test_results.json, output.json, evidence.json (regenerated live)
+
+Tests:
+- `python -m pytest -q` → 474 passed.
+- Live regeneration (GEMINI_MODEL=gemini-3.5-flash, user's key; 3.5-flash often overloaded → 3.5-flash-lite served):
+  8 cases / 8 PASS / 0 NOT_RUN; all 4 SUCCESS cases now `generation_mode=llm` (before the fix public_rich fell back to
+  templates after 3 rejected drafts); remaining rejections are genuine ("chắc hẳn") and fixed on retry.
+
+Result:
+PASS
+
+Notes:
+- Trade-off: slang price "3 củ thôi" is no longer caught (to stop flagging "3 củ khoai"); zero-sales prompt and
+  sales-word lexicon remain.
+- Each regeneration made one unauthenticated request to facebook.com/facebook (LOGIN_REQUIRED) — 3 in this phase.

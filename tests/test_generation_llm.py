@@ -88,7 +88,7 @@ def test_nothing_usable_returns_no_draft():
     profile = RawProfile.model_validate({"facebook_url": "https://www.facebook.com/x.y.z", "display_name": "A"})
     result = generate_engagement(build_ledger(profile), SETTINGS, None)
     assert result.draft is None and result.mode == "none"
-    assert "could not build a grounded draft" in result.error
+    assert "không tạo được bản nháp có căn cứ" in result.error
 
 
 def test_hallucinating_llm_is_rejected():
@@ -108,7 +108,8 @@ def test_user_prompt_lists_only_groundable_facts_and_unknowns():
     prompt = build_user_prompt(ledger, 10, "vi")
     assert "Write in Vietnamese." in prompt and "exactly 10 messages" in prompt
     assert "F1 [name" in prompt and "F9 [post]" in prompt
-    assert inference.id not in prompt and "bicycle" not in prompt
+    # AI vision observations are offered as tentative (FR-019); they are not mixed with the FACT list.
+    assert f"{inference.id} [visual_observation — AI-perceived, mention tentatively]" in prompt
     assert "Unknown fields (never mention or guess): hometown, pronouns, gender, birth_year." in prompt
     assert prompt.index("<facts>") < prompt.index("F9 [post]") < prompt.index("</facts>")
 
@@ -141,4 +142,55 @@ def test_prompt_injection_in_fact_text_does_not_bypass_validation(interests, exp
         joined = " ".join(m.text for m in result.draft.messages) + result.draft.evening_hook.text
         assert "evil.example" not in joined and "50%" not in joined
     else:
-        assert "too few facts are safe to quote" in result.error
+        assert "quá ít thông tin an toàn để trích dẫn" in result.error
+
+
+def test_prompt_states_forms_of_address():
+    from app.intel import Addressing
+
+    neutral = build_user_prompt(LEDGER, 10, "vi")
+    assert 'Forms of address: call the customer "bạn" and yourself "mình".' in neutral
+    polite = build_user_prompt(LEDGER, 10, "vi", addressing=Addressing("chị", "em", "test"))
+    assert 'call the customer "chị" and yourself "em"' in polite and "ạ" in polite
+    assert '"bạn"' not in SYSTEM_PROMPT  # address forms come from the user prompt only
+
+
+def test_generation_passes_addressing_to_llm_and_fallback():
+    from app.intel import Addressing
+
+    fake = FakeLLMClient(responses=[LLMError("timeout", "x")] * 3)
+    result = generate_engagement(LEDGER, SETTINGS, fake, Addressing("chị", "em", "test"))
+    assert all('"chị"' in c["user"] for c in fake.calls)
+    assert result.mode == "deterministic" and result.draft.messages[0].text.startswith("Em chào chị")
+
+
+# --- Brand & product domain (CR-002, TASK-024) ----------------------------------------------
+
+
+def test_llm_draft_mentioning_brand_or_hair_is_rejected():
+    branded = variant(lambda d: d["messages"][9].update(text="Bên em là Dr.Bee, chuyên chăm sóc da đầu cho chị nè!"))
+    result = generate_engagement(LEDGER, SETTINGS, FakeLLMClient(responses=[branded] * 3))
+    assert result.mode == "deterministic"
+    assert any("BRAND_MENTION" in h for h in result.history) and any("PRODUCT_TOPIC" in h for h in result.history)
+    joined = " ".join(m.text for m in result.draft.messages)
+    assert "Dr.Bee" not in joined and "da đầu" not in joined
+
+
+def test_prompt_forbids_brand_and_omits_product_facts():
+    assert '"Dr.Bee"' in SYSTEM_PROMPT and "hair or scalp" in SYSTEM_PROMPT
+    profile = RawProfile.model_validate(
+        {"facebook_url": "https://www.facebook.com/x.y.z", "display_name": "A",
+         "bio": "Fan Dr.Bee", "public_posts": [{"text": "Dạo này rụng tóc nhiều quá"}],
+         "public_info": {"interests": ["làm vườn"]}}
+    )
+    prompt = build_user_prompt(build_ledger(profile), 10, "vi")
+    assert "làm vườn" in prompt
+    assert "Dr.Bee" not in prompt and "rụng tóc" not in prompt
+
+
+def test_prompt_never_offers_perceived_estimates_and_has_tone_guide():
+    ledger, est = append_fact(LEDGER, "perceived_gender", "female", "vision:avatar:estimate", EpistemicStatus.INFERENCE, 0.9)
+    prompt = build_user_prompt(ledger, 10, "vi")
+    assert est.id not in prompt and "female" not in prompt
+    for phrase in ("người bạn tâm giao", "first impression of the profile picture", "đúng không", "Do not mention the clock time"):
+        assert phrase in SYSTEM_PROMPT

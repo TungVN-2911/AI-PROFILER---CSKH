@@ -36,7 +36,7 @@ def test_private_fixture_returns_private_without_profile_fields():
     assert result.access_state is AccessState.PRIVATE
     assert result.raw is None  # display name in the file must not be used
     assert result.synthetic is True
-    assert any("restricted to friends" in note for note in result.limitations)
+    assert any("chỉ hiển thị với bạn bè" in note for note in result.limitations)
 
 
 def test_unknown_url_returns_none_and_chain_reports_no_accessible_data():
@@ -61,10 +61,10 @@ def test_chain_first_source_wins(tmp_path):
 @pytest.mark.parametrize(
     "content,fragment",
     [
-        ("{not json", "not valid JSON"),
-        (json.dumps({"display_name": "no url"}), "does not match the profile format"),
-        (json.dumps({"facebook_url": RICH_URL.url, "unexpected": 1}), "does not match the profile format"),
-        (json.dumps({"facebook_url": "https://example.com/x"}), "invalid facebook_url"),
+        ("{not json", "không phải JSON hợp lệ"),
+        (json.dumps({"display_name": "no url"}), "không đúng định dạng profile"),
+        (json.dumps({"facebook_url": RICH_URL.url, "unexpected": 1}), "không đúng định dạng profile"),
+        (json.dumps({"facebook_url": "https://example.com/x"}), "facebook_url không hợp lệ"),
     ],
 )
 def test_malformed_profile_file_raises_handled_error(tmp_path, content, fragment):
@@ -80,7 +80,7 @@ def test_malformed_profile_file_raises_handled_error(tmp_path, content, fragment
 def test_missing_profile_file_raises_handled_error(tmp_path):
     from app.sources.base import SourceError
 
-    with pytest.raises(SourceError, match="cannot read profile file"):
+    with pytest.raises(SourceError, match="không đọc được file dữ liệu"):
         ProvidedFileSource(tmp_path / "missing.json").acquire(RICH_URL)
 
 
@@ -89,7 +89,7 @@ def test_profile_file_for_another_url_is_rejected(tmp_path):
 
     path = tmp_path / "other.json"
     path.write_text(json.dumps({"facebook_url": "https://www.facebook.com/someone.else"}), encoding="utf-8")
-    with pytest.raises(SourceError, match="does not match --url"):
+    with pytest.raises(SourceError, match="không khớp với --url"):
         ProvidedFileSource(path).acquire(RICH_URL)
 
 
@@ -101,14 +101,14 @@ def test_store_skips_malformed_and_duplicate_files(tmp_path):
     result = store.acquire(RICH_URL)
     assert result.raw.display_name == "A"
     assert len(store.load_errors) == 2
-    assert any("duplicate" in e for e in store.load_errors)
-    assert any("not valid JSON" in e for e in store.load_errors)
+    assert any("trùng" in e for e in store.load_errors)
+    assert any("không phải JSON hợp lệ" in e for e in store.load_errors)
 
 
 def test_missing_store_directory_is_handled(tmp_path):
     store = FixtureStoreSource(tmp_path / "nope")
     assert store.acquire(RICH_URL) is None
-    assert store.load_errors and "does not exist" in store.load_errors[0]
+    assert store.load_errors and "không tồn tại" in store.load_errors[0]
 
 
 def test_repository_fixtures_all_load_and_are_synthetic():

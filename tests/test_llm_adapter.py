@@ -26,12 +26,19 @@ class Echo(BaseModel):
 # --- Provider isolation ---------------------------------------------------------------------
 
 
-def test_only_the_adapter_imports_the_anthropic_sdk():
-    pattern = re.compile(r"^\s*(import anthropic|from anthropic)\b", re.MULTILINE)
+@pytest.mark.parametrize(
+    "pattern,allowed",
+    [
+        (r"^\s*(import anthropic|from anthropic)\b", "anthropic_client.py"),
+        (r"^\s*(import google|from google)\b", "gemini_client.py"),
+    ],
+)
+def test_only_the_adapter_imports_its_provider_sdk(pattern, allowed):
+    regex = re.compile(pattern, re.MULTILINE)
     offenders = [
         str(p.relative_to(PROJECT_ROOT))
         for p in (PROJECT_ROOT / "app").rglob("*.py")
-        if pattern.search(p.read_text(encoding="utf-8")) and p.name != "anthropic_client.py"
+        if regex.search(p.read_text(encoding="utf-8")) and p.name != allowed
     ]
     assert offenders == []
 

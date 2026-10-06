@@ -35,7 +35,7 @@ def local_image_profile(tmp_path, name="avatar.png"):
 
 def test_no_image_is_not_available():
     result = run(raw())
-    assert result.visual_context == NO_IMAGE == "NOT_AVAILABLE: no public image provided"
+    assert result.visual_context == NO_IMAGE == "NOT_AVAILABLE: không có ảnh công khai nào được cung cấp"
     assert result.fact_ids == []
     assert run(None).visual_context == NO_IMAGE
 
@@ -44,7 +44,7 @@ def test_provided_alt_text_used_without_llm_call():
     profile = load_raw_profile(PROJECT_ROOT / "fixtures" / "profiles" / "minh_anh.json")
     fake = FakeLLMClient()
     result = run(profile, fake)
-    assert result.visual_context.startswith("PROVIDED IMAGE DESCRIPTION: Ảnh đại diện có vẻ cho thấy")
+    assert result.visual_context.startswith("MÔ TẢ ẢNH (từ dữ liệu được cung cấp): Ảnh đại diện có vẻ cho thấy")
     assert fake.calls == []
     fact = result.ledger.get(result.fact_ids[0])
     assert fact.epistemic_status is EpistemicStatus.FACT and fact.source.endswith(".alt_text")
@@ -55,7 +55,7 @@ def test_sensitive_alt_text_is_removed_from_ledger():
     result = run(profile)
     assert result.visual_context.startswith("NOT_AVAILABLE")
     assert all(f.category != "visual_observation" for f in result.ledger.facts)
-    assert "sensitive" in result.notes[0]
+    assert "nhạy cảm" in result.notes[0]
 
 
 # --- Vision model path ----------------------------------------------------------------------
@@ -74,7 +74,7 @@ def test_valid_observations_become_inference_facts_with_vision_source(tmp_path):
     before = build_ledger(profile)
     result = extract_visual_context(profile, before, fake, base_dir=tmp_path)
 
-    assert result.visual_context.startswith("AI VISUAL OBSERVATION (avatar image, model-generated, unverified):")
+    assert result.visual_context.startswith("QUAN SÁT ẢNH BẰNG AI (ảnh đại diện; do mô hình tạo, chưa kiểm chứng):")
     assert "coffee cup" in result.visual_context and "bicycle" in result.visual_context
     added = [result.ledger.get(fid) for fid in result.fact_ids]
     assert [f.source for f in added] == ["vision:avatar", "vision:avatar"]
@@ -112,7 +112,7 @@ def test_low_confidence_and_unhedged_observations_rejected(tmp_path):
         vision_responses=[{"image_usable": True, "observations": [obs("appears to show a cat", 0.3), obs("a sunny beach")]}]
     )
     result = extract_visual_context(local_image_profile(tmp_path), build_ledger(raw()), fake, base_dir=tmp_path)
-    assert result.visual_context == "NOT_AVAILABLE: no image observation passed validation"
+    assert result.visual_context == "NOT_AVAILABLE: không có quan sát ảnh nào qua được kiểm tra"
     assert len(result.notes) == 2
     assert result.fact_ids == []
 
@@ -120,31 +120,31 @@ def test_low_confidence_and_unhedged_observations_rejected(tmp_path):
 def test_image_not_usable(tmp_path):
     fake = FakeLLMClient(vision_responses=[{"image_usable": False, "observations": []}])
     result = extract_visual_context(local_image_profile(tmp_path), build_ledger(raw()), fake, base_dir=tmp_path)
-    assert result.visual_context == "NOT_AVAILABLE: the image shows nothing describable"
+    assert result.visual_context == "NOT_AVAILABLE: ảnh không có nội dung mô tả được"
 
 
 def test_more_than_five_observations_is_invalid_output(tmp_path):
     fake = FakeLLMClient(vision_responses=[{"image_usable": True, "observations": [obs(f"appears to show item {i}") for i in range(6)]}])
     result = extract_visual_context(local_image_profile(tmp_path), build_ledger(raw()), fake, base_dir=tmp_path)
-    assert result.visual_context == "NOT_AVAILABLE: vision analysis failed (invalid_output)"
+    assert result.visual_context == "NOT_AVAILABLE: phân tích ảnh thất bại (invalid_output)"
 
 
 def test_llm_error_is_not_available(tmp_path):
     fake = FakeLLMClient(vision_responses=[LLMError("timeout", "slow")])
     result = extract_visual_context(local_image_profile(tmp_path), build_ledger(raw()), fake, base_dir=tmp_path)
-    assert result.visual_context == "NOT_AVAILABLE: vision analysis failed (timeout)"
+    assert result.visual_context == "NOT_AVAILABLE: phân tích ảnh thất bại (timeout)"
 
 
 def test_image_without_llm_in_deterministic_mode(tmp_path):
     result = extract_visual_context(local_image_profile(tmp_path), build_ledger(raw()), None, base_dir=tmp_path)
-    assert "no vision model is configured" in result.visual_context
+    assert "chưa cấu hình mô hình đọc ảnh" in result.visual_context
 
 
 @pytest.mark.parametrize(
     "images,fragment",
     [
-        ([{"kind": "avatar", "path": "missing.png"}], "could not be read"),
-        ([{"kind": "avatar", "path": "avatar.bmp"}], "unsupported image file type"),
+        ([{"kind": "avatar", "path": "missing.png"}], "không đọc được file ảnh"),
+        ([{"kind": "avatar", "path": "avatar.bmp"}], "định dạng file ảnh"),
     ],
 )
 def test_local_image_problems(tmp_path, images, fragment):
@@ -179,7 +179,7 @@ def test_image_url_is_downloaded_once_and_described():
     "response,fragment",
     [
         (httpx.Response(403), "HTTP 403"),
-        (httpx.Response(200, headers={"content-type": "text/html"}, content=b"<html>"), "unsupported content type"),
+        (httpx.Response(200, headers={"content-type": "text/html"}, content=b"<html>"), "kiểu nội dung không hỗ trợ"),
     ],
 )
 def test_image_url_failures(response, fragment):
@@ -197,3 +197,80 @@ def test_lexicon_word_boundaries():
     assert find_sensitive("appears to show a person running") == []
     assert ("gender_age_guess", "man") in find_sensitive("appears to show a man")
     assert find_sensitive("Ảnh đại diện có vẻ cho thấy một người mặc đồ chạy bộ, đeo số áo, đứng cạnh vạch đích.") == []
+
+
+# --- Perceived demographic estimate (CR-001, TASK-022) --------------------------------------
+
+EST = {"single_person_visible": True, "perceived_gender": "female", "gender_confidence": 0.85,
+       "age_min": 25, "age_max": 35, "age_confidence": 0.7}
+
+
+def vision_reply(estimate, observations=None, usable=True):
+    return {"image_usable": usable, "observations": observations or [obs("appears to show a person holding a cup")],
+            "estimate": estimate}
+
+
+def test_confident_estimate_becomes_non_groundable_inference_entries(tmp_path):
+    fake = FakeLLMClient(vision_responses=[vision_reply(EST)])
+    result = extract_visual_context(local_image_profile(tmp_path), build_ledger(raw()), fake, base_dir=tmp_path)
+    gender, age = (result.ledger.get(fid) for fid in result.estimate_fact_ids)
+    assert (gender.category, gender.statement, gender.confidence) == ("perceived_gender", "female", 0.85)
+    assert (age.category, age.statement, age.confidence) == ("perceived_age", "25-35", 0.7)
+    assert {gender.source, age.source} == {"vision:avatar:estimate"}
+    assert gender.epistemic_status is EpistemicStatus.INFERENCE and age.epistemic_status is EpistemicStatus.INFERENCE
+    assert not set(result.estimate_fact_ids) & {f.id for f in result.ledger.usable_facts()}
+    # The estimate never leaks into the visual description.
+    assert "female" not in result.visual_context and "25" not in result.visual_context
+    assert "estimate" in fake.calls[0]["instructions"]
+
+
+@pytest.mark.parametrize(
+    "change,expected_categories",
+    [
+        ({"gender_confidence": 0.5}, {"perceived_age"}),
+        ({"perceived_gender": "unclear"}, {"perceived_age"}),
+        ({"age_min": 20, "age_max": 40}, {"perceived_gender"}),  # wider than 15 years
+        ({"age_confidence": 0.4}, {"perceived_gender"}),
+        ({"age_min": 8, "age_max": 12}, {"perceived_gender"}),  # below plausible bounds
+        ({"age_min": None, "age_max": None}, {"perceived_gender"}),
+        ({"single_person_visible": False}, set()),
+    ],
+)
+def test_estimate_thresholds(tmp_path, change, expected_categories):
+    fake = FakeLLMClient(vision_responses=[vision_reply({**EST, **change})])
+    result = extract_visual_context(local_image_profile(tmp_path), build_ledger(raw()), fake, base_dir=tmp_path)
+    assert {result.ledger.get(fid).category for fid in result.estimate_fact_ids} == expected_categories
+    assert any("bỏ qua" in n for n in result.notes)
+
+
+def test_estimate_only_from_avatar(tmp_path):
+    (tmp_path / "p.png").write_bytes(PNG)
+    profile = raw(images=[{"kind": "photo", "path": "p.png"}])
+    fake = FakeLLMClient(vision_responses=[vision_reply(EST)])
+    result = extract_visual_context(profile, build_ledger(profile), fake, base_dir=tmp_path)
+    assert result.estimate_fact_ids == [] and result.available
+    assert any("không phải ảnh đại diện" in n for n in result.notes)
+
+
+def test_no_estimate_when_image_unusable(tmp_path):
+    fake = FakeLLMClient(vision_responses=[vision_reply(EST, usable=False)])
+    result = extract_visual_context(local_image_profile(tmp_path), build_ledger(raw()), fake, base_dir=tmp_path)
+    assert result.estimate_fact_ids == []
+
+
+def test_alt_text_with_avatar_file_uses_vision_only_for_estimate(tmp_path):
+    (tmp_path / "a.png").write_bytes(PNG)
+    profile = raw(images=[{"kind": "avatar", "path": "a.png", "alt_text": "Ảnh đại diện có vẻ cho thấy một người cầm ô"}])
+    fake = FakeLLMClient(vision_responses=[vision_reply(EST, observations=[obs("appears to show a red umbrella")])])
+    result = extract_visual_context(profile, build_ledger(profile), fake, base_dir=tmp_path)
+    assert result.visual_context.startswith("MÔ TẢ ẢNH (từ dữ liệu được cung cấp):") and "umbrella" not in result.visual_context
+    assert len(result.estimate_fact_ids) == 2 and len(fake.calls) == 1
+
+
+def test_alt_text_kept_when_estimate_call_fails(tmp_path):
+    (tmp_path / "a.png").write_bytes(PNG)
+    profile = raw(images=[{"kind": "avatar", "path": "a.png", "alt_text": "Ảnh đại diện có vẻ cho thấy một người cầm ô"}])
+    fake = FakeLLMClient(vision_responses=[LLMError("timeout", "x")])
+    result = extract_visual_context(profile, build_ledger(profile), fake, base_dir=tmp_path)
+    assert result.available and result.estimate_fact_ids == []
+    assert any("bỏ qua ước lượng từ ảnh" in n for n in result.notes)

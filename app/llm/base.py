@@ -37,11 +37,25 @@ class VisionObservation(BaseModel):
     confidence: float = Field(ge=0.0, le=1.0)
 
 
+class VisionEstimate(BaseModel):
+    """Perceived impression of the single main person in a profile picture (CR-001). Never a fact."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    single_person_visible: bool = Field(description="True only if exactly one person is clearly visible as the main subject.")
+    perceived_gender: Literal["female", "male", "unclear"] = Field(description="Perceived gender presentation; 'unclear' if unsure.")
+    gender_confidence: float = Field(ge=0.0, le=1.0)
+    age_min: int | None = Field(default=None, ge=0, le=120)
+    age_max: int | None = Field(default=None, ge=0, le=120)
+    age_confidence: float = Field(default=0.0, ge=0.0, le=1.0)
+
+
 class VisionResult(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
     image_usable: bool
     observations: list[VisionObservation] = Field(default_factory=list, max_length=5)
+    estimate: VisionEstimate | None = None
 
 
 class LLMClient(Protocol):

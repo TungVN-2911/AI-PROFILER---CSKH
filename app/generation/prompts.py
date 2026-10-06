@@ -7,7 +7,9 @@ Fact text is untrusted data and is fenced as such.
 
 from __future__ import annotations
 
-from app.models import FactLedger
+from app.intel import NEUTRAL_ADDRESSING, Addressing
+from app.lexicons import has_blocked_topic
+from app.models import EpistemicStatus, FactLedger
 
 LANGUAGE_NAMES = {"vi": "Vietnamese", "en": "English"}
 
@@ -27,12 +29,27 @@ Output fields:
 - apparent_lifestyle: null, or one sentence starting exactly with "INFERENCE:" that cites the facts it rests on and goes no further than they support.
 
 Hard rules (a deterministic validator rejects any violation):
-1. ZERO SALES: no products, services, brands, prices, discounts, promotions, offers, free trials, purchase / registration / consultation invitations, links, phone numbers, e-mail addresses or hashtags. Do not introduce a company.
-2. No presumptions about the customer's current situation, mood, health or schedule (e.g. never "you must be tired after work", "after a long day", "tonight you are…"). The evening hook is sent at 20:00 but must not assume what the customer is doing.
+1. ZERO SALES: no products, services, brands, prices, discounts, promotions, offers, free trials, purchase / registration / consultation invitations, links, phone numbers, e-mail addresses or hashtags. Do not introduce a company. Never mention the brand "Dr.Bee" in any spelling, and never bring up hair or scalp problems, hair care, cosmetic or pharmaceutical products — even if a fact mentions them.
+2. No presumptions about the customer's current situation, mood, health or schedule (e.g. never "you must be tired after work", "after a long day", "tonight you are…"). The evening hook is sent at 20:00 but must not assume what the customer is doing. Never use assumptive phrases such as "chắc hẳn", "chắc là bạn…", "tối nay bạn sẽ…", "sau một ngày dài", "mệt mỏi" — the validator rejects them; ask gently instead.
 3. Never mention or guess gender, age, ethnicity, religion, health or body, sexual orientation, political views, relationships or family roles, unless the customer stated it in a fact you cite.
 4. Every number, name, place, event or detail you mention must appear in the facts you cite. Do not embellish.
-5. Address the customer as "bạn" and refer to yourself as "mình" when writing Vietnamese. Keep each message under 300 characters, natural and kind.
-6. Cite only fact ids that appear in the list."""
+5. Use exactly the forms of address given in the user message for the customer and for yourself. Keep each message under 300 characters, natural and kind.
+6. Cite only fact ids that appear in the list.
+
+Tone (the customer-care brief):
+- Sound like a warm, sincere friend (người bạn tâm giao), never a salesperson or a bot. Say what the customer would like
+  to hear: honour what they share, appreciate their efforts, compliment their positive spirit and small joys.
+- Message 1 is a warm greeting; when an image fact is listed, add a gentle first impression of the profile picture and
+  cite that fact.
+- Reflect the facts warmly instead of asking the customer to confirm them (avoid "…đúng không?", "…phải không?").
+- Mix short reflections with a few gentle open questions, vary how messages start, and never interrogate.
+- Aim for the full number of messages; warm neutral messages (greeting, open question, closing wish) are fine.
+- Only an image fact can support remarks about a photo; never describe pictures you were not given.
+- Evening hook: soft and caring, around one cited fact, inviting a reply without pressure. A relaxing evening wish
+  "sau giờ làm việc" is fine when you cite a work fact; family topics only when a cited fact is about family.
+  Do not mention the clock time.
+- Facts marked "AI-perceived" come from automatic image analysis and may be wrong: mention them tentatively
+  ("nhìn ảnh có vẻ…")."""
 
 
 def build_user_prompt(
@@ -40,13 +57,19 @@ def build_user_prompt(
     message_count: int,
     language: str,
     feedback: list[str] | None = None,
+    addressing: Addressing = NEUTRAL_ADDRESSING,
 ) -> str:
     name = ledger.name_fact()
     lines = []
     if name:
         lines.append(f"{name.id} [name — may be used to greet; not a grounding fact]: {name.statement}")
     for fact in ledger.usable_facts():
+        if has_blocked_topic(fact.statement):
+            continue  # CR-002: brand / product-domain facts can never be used, so they are not offered
         lines.append(f"{fact.id} [{fact.category}] (source {fact.source}): {fact.statement}")
+    for fact in ledger.facts:
+        if fact.category == "visual_observation" and fact.epistemic_status is EpistemicStatus.INFERENCE:
+            lines.append(f"{fact.id} [visual_observation — AI-perceived, mention tentatively] (source {fact.source}): {fact.statement}")
     unknown = ", ".join(ledger.unknown_fields) or "none"
     language_name = LANGUAGE_NAMES.get(language, language)
 
@@ -55,6 +78,8 @@ def build_user_prompt(
         f"Write exactly {message_count} messages. If the facts are too thin for that many without padding or "
         "inventing, write fewer, but never fewer than 5.",
         f"Unknown fields (never mention or guess): {unknown}.",
+        f'Forms of address: call the customer "{addressing.customer}" and yourself "{addressing.agent}"'
+        + ("." if addressing.is_neutral else ' (polite customer-care register; questions may end with "ạ").'),
         "<facts>",
         *lines,
         "</facts>",

@@ -26,7 +26,9 @@ def test_rich_fixture_gives_ten_valid_messages():
     grounded = [m for m in draft.messages if m.kind == "grounded"]
     assert len(grounded) >= 5
     # Every grounded message cites exactly one fact whose text it contains.
-    for m in grounded:
+    # Message 0 is the avatar greeting (name + image description); every other grounded message cites one fact.
+    assert draft.messages[0].kind == "grounded" and "ảnh đại diện" in draft.messages[0].text
+    for m in grounded[1:]:
         (fid,) = m.fact_ids
         assert ledger.get(fid).statement[:40] in m.text
     assert draft.evening_hook.fact_ids and draft.core_empathy_angle.fact_ids
@@ -97,7 +99,7 @@ def test_hometown_and_education_templates():
     draft = generate_deterministic(ledger, 10)
     assert validate_draft(draft, ledger) == []
     texts = " ".join(m.text for m in draft.messages)
-    assert "quê ở Nam Định" in texts and "phần học vấn" in texts
+    assert "Quê bạn ở Nam Định" in texts and "từng học tại" in texts
 
 
 def test_no_usable_facts_raises():
@@ -117,7 +119,9 @@ def test_hook_fact_not_repeated_in_sequence_when_enough_facts():
     draft = generate_deterministic(build_ledger(RICH), 10)
     hook_id = draft.evening_hook.fact_ids[0]
     assert all(hook_id not in m.fact_ids for m in draft.messages)
-    assert sum(m.kind == "neutral" for m in draft.messages) >= 3  # greeting, open question, closing
+    # Greeting (now grounded on the avatar) + at least one open question + closing.
+    assert "ảnh đại diện" in draft.messages[0].text
+    assert sum(m.kind == "neutral" for m in draft.messages) >= 2
 
 
 def test_template_variety_within_category():
@@ -161,3 +165,93 @@ def test_bug001_plain_quote_keeps_its_period():
     assert _tidy("mừng ghê.”. Chuyện") == "mừng ghê.” Chuyện"
     assert _tidy("vui!”. Khi") == "vui!” Khi"
     assert _tidy("sourdough”.") == "sourdough”."
+
+
+# --- Forms of address (CR-001, TASK-023) ----------------------------------------------------
+
+import re  # noqa: E402
+
+from app.intel import NEUTRAL_ADDRESSING, Addressing  # noqa: E402
+
+CHI = Addressing("chị", "em", "test")
+ANH = Addressing("anh", "em", "test")
+STANDALONE_BAN = re.compile(r"(?<!\w)bạn(?!\w)", re.IGNORECASE)
+
+
+def all_texts(draft):
+    return [m.text for m in draft.messages] + [draft.evening_hook.text, draft.core_empathy_angle.text]
+
+
+@pytest.mark.parametrize("addressing,word", [(CHI, "chị"), (ANH, "anh")])
+def test_polite_addressing_replaces_ban_minh(addressing, word):
+    ledger = build_ledger(RICH)
+    draft = generate_deterministic(ledger, 10, addressing)
+    assert validate_draft(draft, ledger) == []
+    texts = all_texts(draft)
+    assert not any(STANDALONE_BAN.search(t) for t in texts)
+    assert not any(re.search(r"(?<!\w)mình(?!\w)", t, re.IGNORECASE) for t in texts)
+    assert draft.messages[0].text == (
+        f"Em chào {word} Minh Anh ạ! Em vừa ghé thăm trang cá nhân của {word}, "
+        "ấn tượng đầu tiên là tấm ảnh đại diện nhìn thật dễ mến."
+    )
+    assert any(t.endswith(" ạ?") for t in texts)  # polite particle on questions
+    assert sum(word in t for t in texts) >= 8
+
+
+def test_neutral_addressing_unchanged():
+    draft = generate_deterministic(build_ledger(RICH), 10, NEUTRAL_ADDRESSING)
+    assert draft == generate_deterministic(build_ledger(RICH), 10)
+    assert draft.messages[0].text.startswith("Chào Nguyễn Minh Anh! Mình vừa ghé thăm")
+    assert not any(t.endswith(" ạ?") for t in all_texts(draft))
+
+
+def test_customer_quote_is_never_rewritten_and_braces_are_safe():
+    profile = raw(
+        public_posts=[{"text": "Cảm ơn các bạn đã đến dự {sinh nhật} của mình!"}],
+        public_info={"interests": ["đan len"], "current_city": "Huế"},
+    )
+    ledger = build_ledger(profile)
+    draft = generate_deterministic(ledger, 10, CHI)
+    assert validate_draft(draft, ledger) == []
+    quoted = [t for t in all_texts(draft) if "Cảm ơn các bạn" in t]
+    assert quoted and "Cảm ơn các bạn đã đến dự {sinh nhật} của mình!" in quoted[0]
+
+
+def test_deterministic_never_quotes_brand_or_product_facts():
+    profile = raw(
+        bio="Đang dùng thử dầu gội Dr.Bee",
+        public_posts=[{"text": "Dạo này rụng tóc nhiều quá"}, {"text": "Vườn rau ban công đã lên mầm"}],
+        public_info={"interests": ["làm vườn", "nấu ăn"], "current_city": "Huế"},
+    )
+    ledger = build_ledger(profile)
+    draft = generate_deterministic(ledger, 10)
+    assert validate_draft(draft, ledger) == []
+    joined = " ".join(all_texts(draft))
+    assert "Dr.Bee" not in joined and "rụng tóc" not in joined and "dầu gội" not in joined
+
+
+# --- Emotional quality (CR-003, TASK-026) ---------------------------------------------------
+
+
+def test_work_hook_uses_relaxing_evening_wish():
+    profile = raw(
+        public_info={"work": ["Điều dưỡng tại Bệnh viện Hòa An"], "current_city": "Huế"},
+        images=[{"kind": "avatar", "alt_text": "Ảnh đại diện có vẻ cho thấy một người mỉm cười"}],
+    )
+    ledger = build_ledger(profile)
+    draft = generate_deterministic(ledger, 10)
+    assert validate_draft(draft, ledger) == []
+    work = next(f for f in ledger.facts if f.category == "work")
+    assert draft.evening_hook.fact_ids == [work.id]
+    assert "sau giờ làm việc" in draft.evening_hook.text and draft.evening_hook.text.startswith("Buổi tối an lành")
+
+
+def test_every_fixture_draft_is_warm_and_valid():
+    for path in sorted((PROJECT_ROOT / "fixtures" / "profiles").glob("*.json")):
+        ledger = build_ledger(load_raw_profile(path))
+        if len(ledger.usable_facts()) < 2 or not any(f.category == "visual_observation" for f in ledger.facts):
+            continue
+        draft = generate_deterministic(ledger, 10)
+        assert validate_draft(draft, ledger) == []
+        assert "ảnh đại diện" in draft.messages[0].text
+        assert not any("đúng không" in t or "phải không" in t for t in all_texts(draft))

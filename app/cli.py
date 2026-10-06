@@ -75,7 +75,7 @@ def run(argv: list[str] | None = None) -> int:
         args = parser.parse_args(argv)
     except _UsageError as exc:
         _configure_streams(verbose=False)
-        result = _error_result("", f"INVALID_INPUT: {exc}", EXIT_INPUT)
+        result = _error_result("", f"INVALID_INPUT: tham số dòng lệnh không hợp lệ ({exc})", EXIT_INPUT)
     else:
         _configure_streams(args.verbose)
         output_path, evidence_path = args.output, args.evidence

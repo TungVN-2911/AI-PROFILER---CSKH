@@ -3,7 +3,7 @@ import copy
 import pytest
 
 from app.config import PROJECT_ROOT
-from app.guardrails import EngagementDraft, check_text, validate_draft
+from app.guardrails import EngagementDraft, check_entities, check_text, validate_draft
 from app.intel import build_intelligence
 from app.ledger import append_fact, build_ledger
 from app.models import EpistemicStatus, RawProfile
@@ -87,10 +87,13 @@ def test_hook_and_angle_must_cite_usable_fact():
     assert {(x.code, x.location) for x in v} >= {("MISSING_CITATION", "evening_hook"), ("MISSING_CITATION", "core_empathy_angle")}
 
 
-def test_inference_citation_rejected():
-    ledger, fact = append_fact(LEDGER, "visual_observation", "appears to show a bicycle", "vision:avatar", EpistemicStatus.INFERENCE, 0.9)
-    v = validate_draft(draft(set_msg(5, "Chiếc xe đạp trông đẹp quá!", fact_ids=[fact.id])), ledger)
-    assert "NON_FACT_CITATION" in codes(v)
+def test_ai_vision_observation_may_ground_a_message_but_estimates_may_not():
+    ledger, obs = append_fact(LEDGER, "visual_observation", "appears to show a bicycle", "vision:avatar", EpistemicStatus.INFERENCE, 0.9)
+    ok = validate_draft(draft(set_msg(5, "Nhìn ảnh đại diện có vẻ bạn rất mê đạp xe!", fact_ids=[obs.id])), ledger)
+    assert "NON_FACT_CITATION" not in codes(ok) and "MISSING_CITATION" not in codes(ok)
+    ledger, est = append_fact(ledger, "perceived_age", "25-35", "vision:avatar:estimate", EpistemicStatus.INFERENCE, 0.9)
+    bad = validate_draft(draft(set_msg(5, "Chúc bạn một ngày vui!", fact_ids=[est.id])), ledger)
+    assert "NON_FACT_CITATION" in codes(bad)
 
 
 def test_demographic_citation_rejected():
@@ -171,7 +174,7 @@ def test_sales_and_contact_detectors(text, code):
     [
         "Chắc bạn vừa đi làm về mệt lắm nhỉ, nghỉ ngơi chút nhé!",
         "Sau một ngày dài, mình mong bạn thư giãn với sourdough.",
-        "Tối nay bạn có định nướng thêm sourdough không?",
+        "Tối nay bạn sẽ nướng thêm sourdough đấy.",  # assertion; the question form is allowed (BUG-003)
         "You must be tired after work, enjoy the sourdough!",
     ],
 )
@@ -200,3 +203,143 @@ def test_sales_and_sensitive_terms_allowed_when_self_declared_in_cited_fact():
 
 def test_too_long_message():
     assert "TOO_LONG" in codes(check_text("a" * 401, "m"))
+
+
+def test_agent_pronoun_em_is_not_a_claim_about_the_customer():
+    ok = draft(set_msg(0, "Em chào chị Minh Anh, em rất vui được làm quen với chị ạ!", kind="neutral", fact_ids=["F1"]))
+    assert validate_draft(ok, LEDGER) == []
+    claim = draft(set_msg(6, "Chị thích đi biển vào cuối tuần.", kind="neutral", fact_ids=[]))
+    assert "NEUTRAL_CLAIM" in codes(validate_draft(claim, LEDGER))
+
+
+# --- Brand & product domain (CR-002, TASK-024) ----------------------------------------------
+
+
+@pytest.mark.parametrize("text", ["Bên em là Dr.Bee nè chị", "Dr. Bee", "DrBee", "dr bee", "DR.BEE", "Dr-Bee", "Bác sĩ Bee", "Doctor Bee"])
+def test_brand_spellings_are_blocked(text):
+    assert "BRAND_MENTION" in codes(check_text(text, "m"))
+
+
+def test_brand_blocked_even_when_customer_mentions_it():
+    profile = RawProfile.model_validate({"facebook_url": RICH.facebook_url, "display_name": "A", "bio": "Fan cứng của Dr.Bee"})
+    ledger = build_ledger(profile)
+    bio = next(f for f in ledger.facts if f.category == "bio")
+    assert "BRAND_MENTION" in codes(check_text("Chị là fan của Dr.Bee à?", "m", [bio]))
+
+
+def test_bee_nickname_is_not_the_brand():
+    assert check_text("Chào Bee, chúc ngày vui nhé!", "m") == []
+
+
+@pytest.mark.parametrize(
+    "text",
+    ["Chị có bị rụng tóc không ạ?", "Da đầu dạo này thế nào chị?", "Dầu gội nào hợp với chị?",
+     "Serum này hay lắm", "Lately hair loss is common", "Try a gentle shampoo"],
+)
+def test_hard_product_topics_blocked(text):
+    assert "PRODUCT_TOPIC" in codes(check_text(text, "m"))
+
+
+def test_hard_product_topic_blocked_even_when_cited():
+    profile = RawProfile.model_validate(
+        {"facebook_url": RICH.facebook_url, "display_name": "A", "public_posts": [{"text": "Dạo này rụng tóc nhiều quá"}]}
+    )
+    ledger = build_ledger(profile)
+    post = next(f for f in ledger.facts if f.category == "post")
+    assert "PRODUCT_TOPIC" in codes(check_text("Dạo này rụng tóc nhiều quá, chị ổn không?", "m", [post]))
+
+
+def test_soft_product_terms_allowed_only_when_self_declared():
+    profile = RawProfile.model_validate(
+        {"facebook_url": RICH.facebook_url, "display_name": "A", "public_info": {"work": ["Dược sĩ tại Nhà thuốc Hòa Bình"]}}
+    )
+    ledger = build_ledger(profile)
+    work = next(f for f in ledger.facts if f.category == "work")
+    assert check_text("Công việc dược sĩ chắc nhiều điều thú vị nhỉ chị?", "m", [work]) == []
+    assert "PRODUCT_TOPIC" in codes(check_text("Công việc dược sĩ chắc nhiều điều thú vị nhỉ chị?", "m"))
+    assert "PRODUCT_TOPIC" in codes(check_text("Mái tóc của chị đẹp quá!", "m"))
+
+
+def test_no_brand_or_product_false_positive_on_any_fixture():
+    from app.config import PROJECT_ROOT as ROOT
+
+    for path in (ROOT / "fixtures" / "profiles").glob("*.json"):
+        for fact in build_ledger(load_raw_profile(path)).facts:
+            assert not {v.code for v in check_text(fact.statement, "f")} & {"BRAND_MENTION", "PRODUCT_TOPIC"}, fact.statement
+
+
+# --- Grounded family / work themes (CR-003, TASK-026) ---------------------------------------
+
+
+def _fact(category, statement, source="fixture:x"):
+    from app.models import Fact
+
+    return Fact(id="F90", category=category, statement=statement, source=source)
+
+
+def test_family_topic_allowed_when_cited_fact_is_about_family():
+    family_post = _fact("post", "Cuối tuần cả nhà cùng nấu cơm, các bé phụ rửa rau")
+    assert check_text("Bữa cơm tối gia đình mình chắc ấm áp lắm, các bé ngoan quá!", "hook", [family_post]) == []
+    assert "SENSITIVE_TERM" in codes(check_text("Các bé hôm nay đi học về có vui không chị?", "hook"))
+    assert "SENSITIVE_TERM" in codes(check_text("Bữa cơm tối gia đình mình có món gì ngon?", "hook", [_fact("interest", "nấu ăn")]))
+
+
+def test_work_evening_wish_allowed_only_with_a_work_fact():
+    work = _fact("work", "Kế toán tại Công ty Hoa Mai")
+    assert check_text("Chúc chị có phút thư giãn thật trọn vẹn sau giờ làm việc nhé!", "hook", [work]) == []
+    assert "PRESUMPTION" in codes(check_text("Chúc chị có phút thư giãn thật trọn vẹn sau giờ làm việc nhé!", "hook"))
+    # Mood presumptions stay forbidden even with a work fact.
+    assert "PRESUMPTION" in codes(check_text("Chắc chị mệt mỏi lắm sau giờ làm việc.", "hook", [work]))
+
+
+def test_post_date_from_source_is_grounded():
+    post = _fact("post", "Hoàn thành 10km đầu tiên", source="fixture:public_posts[0]@2026-09-28")
+    assert check_entities("Ngày 28/09 bạn chạy được 10km đầu tiên, giỏi quá!", "m", [post], None) == []
+    assert codes(check_entities("Ngày 15/10 bạn chạy được 10km đầu tiên!", "m", [post], None)) == {"UNGROUNDED_NUMBER"}
+
+
+# --- BUG-003: false positives seen in live Gemini drafts -------------------------------------
+
+
+@pytest.mark.parametrize(
+    "text,cited_work",
+    [
+        ("Mẻ bánh thứ 3 đã có vỏ giòn rồi!", False),          # "đ" of "đã" is not the currency
+        ("Bạn là người yêu thích chạy bộ quá!", False),        # "người yêu thích" = a person who likes
+        ("Tối nay bạn có định chạy bộ không?", False),         # a question, not a presumption
+        ("Công việc bạn đang làm chắc nhiều sáng tạo.", True),  # grounded by the cited work fact
+    ],
+)
+def test_live_false_positives_are_gone(text, cited_work):
+    cited = [_fact("work", "Thiết kế đồ họa tại Studio Lá Xanh")] if cited_work else []
+    assert check_text(text, "m", cited) == []
+
+
+@pytest.mark.parametrize(
+    "text,code",
+    [
+        ("Giá chỉ 3đ thôi", "PRICE"),
+        ("Chỉ 1.500.000đ.", "PRICE"),
+        ("Người yêu của bạn thật dễ thương", "SENSITIVE_TERM"),
+        ("Tối nay bạn có hẹn với ai đó.", "PRESUMPTION"),
+        ("Chắc hẳn bạn rất vui.", "PRESUMPTION"),
+        ("Bạn đang làm gì đó?", "PRESUMPTION"),
+    ],
+)
+def test_true_positives_still_detected(text, code):
+    assert code in codes(check_text(text, "m"))
+
+
+@pytest.mark.parametrize(
+    "text,flagged",
+    [
+        ("Bạn là người yêu chạy bộ và làm bánh.", False),
+        ("Một người yêu cái đẹp và sự tỉ mỉ.", False),
+        ("Bạn đúng là người yêu thích chạy bộ!", False),
+        ("Đi chơi cùng người yêu.", True),
+        ("Người yêu của bạn thật dễ thương", True),
+        ("Kể về người yêu cũ đi", True),
+    ],
+)
+def test_nguoi_yeu_only_flagged_as_lover(text, flagged):
+    assert ("SENSITIVE_TERM" in codes(check_text(text, "m"))) is flagged

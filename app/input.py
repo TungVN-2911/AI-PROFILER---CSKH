@@ -63,55 +63,55 @@ class CanonicalUrl:
 def validate_profile_url(raw: str | None) -> CanonicalUrl:
     """Return the canonical profile URL or raise InputError with a human-readable reason."""
     if raw is None or not raw.strip():
-        raise InputError("a Facebook profile URL is required (--url)", raw)
+        raise InputError("cần cung cấp URL trang Facebook cá nhân (--url)", raw)
     text = raw.strip()
 
     if "://" not in text:
         # Allow scheme-less input such as "facebook.com/username".
         if not text.lower().startswith(tuple(ALLOWED_HOSTS)):
-            raise InputError("not a URL: expected https://www.facebook.com/<username>", raw)
+            raise InputError("không phải URL hợp lệ, cần dạng https://www.facebook.com/<username>", raw)
         text = "https://" + text
 
     try:
         parts = urlsplit(text)
         port = parts.port
     except ValueError:
-        raise InputError("malformed URL", raw) from None
+        raise InputError("URL sai định dạng", raw) from None
 
     if parts.scheme.lower() not in {"http", "https"}:
-        raise InputError(f"unsupported URL scheme '{parts.scheme}'", raw)
+        raise InputError(f"giao thức URL '{parts.scheme}' không được hỗ trợ", raw)
     if parts.username is not None or parts.password is not None:
-        raise InputError("URLs with embedded credentials are not accepted", raw)
+        raise InputError("không chấp nhận URL có kèm thông tin đăng nhập", raw)
     if port is not None:
-        raise InputError("URLs with an explicit port are not accepted", raw)
+        raise InputError("không chấp nhận URL có chỉ định cổng (port)", raw)
     host = (parts.hostname or "").lower().rstrip(".")
     if host not in ALLOWED_HOSTS:
-        raise InputError(f"host '{host or '(none)'}' is not facebook.com", raw)
+        raise InputError(f"tên miền '{host or '(trống)'}' không phải facebook.com", raw)
 
     segments = [s for s in parts.path.split("/") if s]
     if not segments:
-        raise InputError("URL does not point to a profile (no username or id)", raw)
+        raise InputError("URL không trỏ tới trang cá nhân (thiếu username hoặc id)", raw)
 
     first = segments[0].lower()
     if first == "profile.php":
         ids = parse_qs(parts.query).get("id", [])
         if len(ids) != 1 or not PROFILE_ID_RE.match(ids[0]):
-            raise InputError("profile.php URL must contain a numeric ?id=", raw)
+            raise InputError("URL profile.php phải có tham số ?id= dạng số", raw)
         return _profile_id(ids[0], raw)
 
     if first == "people":
         # /people/<Display-Name>/<numeric id>
         if len(segments) >= 3 and PROFILE_ID_RE.match(segments[2]):
             return _profile_id(segments[2], raw)
-        raise InputError("/people/ URL must end with a numeric profile id", raw)
+        raise InputError("URL /people/ phải kết thúc bằng id trang cá nhân dạng số", raw)
 
     if first in RESERVED_SEGMENTS:
-        raise InputError(f"'/{segments[0]}' is not a personal profile URL", raw)
+        raise InputError(f"'/{segments[0]}' không phải URL trang cá nhân", raw)
     if not USERNAME_RE.match(segments[0]):
-        raise InputError(f"'{segments[0]}' is not a valid Facebook username", raw)
+        raise InputError(f"'{segments[0]}' không phải username Facebook hợp lệ", raw)
     extra = [s.lower() for s in segments[1:]]
     if extra and (len(extra) > 1 or extra[0] not in PROFILE_SUBPAGES):
-        raise InputError(f"'/{'/'.join(segments)}' is not a profile URL", raw)
+        raise InputError(f"'/{'/'.join(segments)}' không phải đường dẫn tới trang cá nhân", raw)
 
     username = first
     return CanonicalUrl(url=f"{CANONICAL_BASE}/{username}", kind="username", identifier=username, original=raw)

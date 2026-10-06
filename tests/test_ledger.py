@@ -96,7 +96,7 @@ def test_name_only_profile_is_insufficient():
     assert not gate.ok
     assert gate.reason_code == "INSUFFICIENT_DATA"
     assert gate.note.startswith("INSUFFICIENT_DATA:")
-    assert "only 0 usable" in gate.note
+    assert "Chỉ thu thập được 0 thông tin" in gate.note
 
 
 def test_one_fact_is_below_default_threshold_two_passes():
@@ -115,7 +115,7 @@ def test_facts_without_name_are_insufficient():
     ledger = build_ledger(raw(bio="Yêu mèo", public_info={"current_city": "Huế"}))
     gate = evaluate_sufficiency(AccessState.PUBLIC, ledger, SETTINGS)
     assert gate.reason_code == "INSUFFICIENT_DATA"
-    assert "display name" in gate.note
+    assert "tên hiển thị" in gate.note
 
 
 @pytest.mark.parametrize(

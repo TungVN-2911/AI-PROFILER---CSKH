@@ -60,7 +60,7 @@ def test_public_page_yields_public_raw_profile():
     assert raw.collection_method == "live_meta"
     assert raw.synthetic is False
     assert result.synthetic is False
-    assert any("only public HTML meta tags" in n for n in result.limitations)
+    assert any("chỉ đọc các thẻ meta HTML công khai" in n for n in result.limitations)
 
 
 def test_boilerplate_description_is_dropped_and_state_is_partial():
@@ -110,10 +110,10 @@ def test_content_unavailable_page_is_not_found():
 
 
 def test_timeout_is_unreachable():
-    rec = Recorder(exc=httpx.ReadTimeout("timed out"))
+    rec = Recorder(exc=httpx.ReadTimeout("quá thời gian chờ"))
     result = source_for(rec).acquire(URL)
     assert result.access_state is AccessState.UNREACHABLE
-    assert "timed out" in result.limitations[0]
+    assert "quá thời gian chờ" in result.limitations[0]
     assert len(rec.requests) == 1  # no retry
 
 

@@ -45,7 +45,7 @@ FIXTURE_URLS = {
 
 
 def _env():
-    blocked = ("ANTHROPIC_", "PYTHONIOENCODING", "PYTHONUTF8", "LLM_", "LIVE_", "PROFILE_STORE", "MIN_GROUNDING",
+    blocked = ("ANTHROPIC_", "GEMINI_", "PYTHONIOENCODING", "PYTHONUTF8", "LLM_", "LIVE_", "PROFILE_STORE", "MIN_GROUNDING",
                "DEFAULT_MESSAGE", "OUTPUT_LANGUAGE")
     return {k: v for k, v in os.environ.items() if not k.startswith(blocked)}
 
@@ -87,10 +87,12 @@ def assert_success_invariants(out: SuccessOutput, evidence: dict):
         for phrase in find_presumptions(text):
             assert phrase.casefold() in cited_text[i].casefold(), f"presumption {phrase!r} in message {i}"
 
-    # Demographic honesty: UNKNOWN or explicitly derived from a self-declared fact.
+    # Demographic honesty: UNKNOWN, derived from a self-declared fact, or a labelled perceived INFERENCE (CR-001).
     demo = out.profile_data.estimated_demographics
-    assert demo.gender == "UNKNOWN" or "self-declared" in demo.gender
-    assert demo.estimated_age_range == "UNKNOWN" or "derived from stated birth year" in demo.estimated_age_range
+    assert demo.gender == "UNKNOWN" or "tự khai báo" in demo.gender or (
+        demo.gender.startswith("INFERENCE:") and "ước lượng từ" in demo.gender)
+    assert demo.estimated_age_range == "UNKNOWN" or "tính từ năm sinh tự khai báo" in demo.estimated_age_range or (
+        demo.estimated_age_range.startswith("INFERENCE:") and "ước lượng từ" in demo.estimated_age_range)
     assert demo.apparent_lifestyle == "UNKNOWN" or demo.apparent_lifestyle.startswith("INFERENCE:")
 
     # Evidence: every message grounded or neutral, every cited id exists and is a FACT.
@@ -127,14 +129,12 @@ def test_input_missing_url(tmp_path):
 # --- Data availability -----------------------------------------------------------------------
 
 
-@pytest.mark.parametrize("case", ["public", "public_no_image", "declared", "profile_id", "partial"])
+@pytest.mark.parametrize("case", ["public", "declared", "profile_id", "partial"])
 def test_data_success_cases(tmp_path, case):
     code, out, evidence = cli(tmp_path, "--url", FIXTURE_URLS[case])
     assert code == 0 and isinstance(out, SuccessOutput)
     assert_success_invariants(out, evidence)
     assert evidence["synthetic_data"] is True
-    if case == "public_no_image":
-        assert out.profile_data.visual_context == "NOT_AVAILABLE: no public image provided"
     if case == "partial":
         assert evidence["access_state"] == "PARTIAL"
 
@@ -145,6 +145,7 @@ def test_data_success_cases(tmp_path, case):
         ("private", "PRIVATE_PROFILE:", "PRIVATE"),
         ("dead", "NOT_FOUND:", "NOT_FOUND"),
         ("name_only", "INSUFFICIENT_DATA:", "PUBLIC"),
+        ("public_no_image", "NO_IMAGE:", "PUBLIC"),
     ],
 )
 def test_data_partial_cases(tmp_path, case, prefix, state):
@@ -224,7 +225,7 @@ def test_rapport_message_counts(tmp_path, n):
 
 
 def test_rapport_zero_sales_across_all_success_fixtures(tmp_path):
-    for case in ("public", "public_no_image", "declared", "profile_id", "partial"):
+    for case in ("public", "declared", "profile_id", "partial"):
         result = run_pipeline(FIXTURE_URLS[case], PipelineOptions(mode="deterministic"), SETTINGS)
         assert_success_invariants(result.output, json.loads(result.evidence.model_dump_json()))
 
@@ -242,3 +243,12 @@ def test_output_is_valid_json_schema_stdout_and_file(tmp_path):
     assert json.loads(raw_file) == doc
     assert set(doc) == {"status", "facebook_url", "profile_data", "ethical_rapport", "evening_cadence_20pm"}
     assert not re.search(r"\\u[0-9a-f]{4}", raw_file)  # Vietnamese stored as UTF-8, not escaped
+
+
+def test_brand_never_reaches_output_end_to_end():
+    branded = copy.deepcopy(CLEAN)
+    branded["evening_hook"]["text"] = "Tối nay chị thử dầu gội Dr.Bee phục hồi nang tóc nhé!"
+    result, _ = _llm_run([branded] * 3)
+    emitted = json.dumps(result.output.model_dump(), ensure_ascii=False)
+    assert "Dr.Bee" not in emitted and "nang tóc" not in emitted and "dầu gội" not in emitted
+    assert result.output.ethical_rapport.sales_mention_check == "ZERO_SALES_CONFIRMED"

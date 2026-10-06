@@ -12,6 +12,7 @@ import math
 import re
 
 from app.guardrails import CitedText, DraftMessage, EngagementDraft, check_entities, check_text
+from app.intel import NEUTRAL_ADDRESSING, Addressing
 from app.models import Fact, FactLedger
 from app.schema import MAX_MESSAGES, MIN_MESSAGES
 
@@ -20,13 +21,27 @@ MAX_QUOTE_CHARS = 120
 # Grounded-message priority: the customer's own recent words first.
 CATEGORY_ORDER = ("post", "interest", "bio", "work", "education", "location", "visual_observation", "other")
 
+# Templates use {you}/{You} (customer) and {me}/{Me} (agent) from `Addressing`; {s} is the quoted fact text,
+# inserted last so that braces or pronouns inside the customer's own words are never altered.
 NEUTRAL_QUESTIONS = (
-    "Dạo này có điều gì nhỏ nhỏ khiến bạn thấy vui không?",
-    "Cuối tuần bạn thường thích làm gì để thư giãn?",
-    "Nếu có cuốn sách hay bộ phim nào bạn thấy đáng xem, bạn giới thiệu mình với được không?",
-    "Mình luôn sẵn lòng lắng nghe nếu bạn muốn trò chuyện thêm.",
+    "Dạo này có điều gì nhỏ nhỏ khiến {you} mỉm cười không{q}?",
+    "Cuối tuần {you} thường dành thời gian cho điều gì để nạp lại năng lượng{q}?",
+    "Nếu có cuốn sách hay bộ phim nào {you} thấy đáng xem, {you} giới thiệu cho {me} với được không{q}?",
+    "{Me} luôn ở đây lắng nghe nếu {you} muốn chia sẻ thêm bất cứ điều gì.",
 )
-CLOSING = "Rất vui được trò chuyện với bạn, hẹn sớm nói chuyện tiếp nhé!"
+CLOSING = "Trò chuyện cùng {you} thật sự là niềm vui của {me}. Chúc {you} một ngày thật nhẹ nhàng và nhiều niềm vui nhé!"
+GREETING_NEUTRAL = "Chào {name}, mình rất vui được làm quen với bạn!"
+GREETING_POLITE = "{Me} chào {you} {name}, {me} rất vui được làm quen với {you} ạ!"
+# FR-019: the first message mentions a first impression of the profile picture when an image description exists.
+AVATAR_IMPRESSION = "{Me} vừa ghé thăm trang cá nhân của {you}, ấn tượng đầu tiên là tấm ảnh đại diện nhìn thật dễ mến."
+ANGLE = "Trân trọng những niềm vui và nỗ lực mà {you} ấy tự chia sẻ: {s}"
+
+_QUOTE_SLOT = "\ue000"
+
+
+def _fill(template: str, addressing: Addressing, s: str = "", **extra: str) -> str:
+    text = template.replace("{s}", _QUOTE_SLOT).format(**addressing.fields(), **extra)
+    return text.replace(_QUOTE_SLOT, s)
 
 
 def _clip(text: str, limit: int = MAX_QUOTE_CHARS) -> str:
@@ -38,51 +53,60 @@ def _clip(text: str, limit: int = MAX_QUOTE_CHARS) -> str:
 
 
 POST_TEMPLATES = (
-    "Mình có đọc bài bạn chia sẻ: “{s}”. Bạn có muốn kể thêm một chút về chuyện đó không?",
-    "Bài viết “{s}” của bạn làm mình ấn tượng ghê. Lúc đó bạn cảm thấy thế nào?",
-    "Mình nhớ bạn có viết: “{s}”. Chuyện đó có gì thú vị, bạn kể mình nghe với?",
+    "{Me} có đọc dòng {you} chia sẻ: “{s}”. Những khoảnh khắc như vậy thật đáng trân trọng, {you} kể {me} nghe thêm được không{q}?",
+    "Đọc bài viết “{s}” của {you}, {me} thấy thật gần gũi. Lúc ấy {you} cảm thấy thế nào{q}?",
+    "{Me} nhớ {you} từng viết: “{s}”. Cảm ơn {you} đã chia sẻ thật chân thành, {me} rất muốn nghe câu chuyện phía sau{q}.",
 )
 INTEREST_TEMPLATES = (
-    "Mình thấy bạn có nhắc đến sở thích {s}. Điều gì khiến bạn gắn bó với {s} vậy?",
-    "Bạn bắt đầu thích {s} từ khi nào vậy?",
-    "Với {s}, bạn có mẹo nhỏ nào muốn chia sẻ cho người mới bắt đầu không?",
+    "{Me} thấy {you} có niềm yêu thích với {s}, nghe thôi đã thấy thật thú vị. Điều gì khiến {you} gắn bó với {s} vậy{q}?",
+    "{You} bắt đầu đến với {s} từ khi nào vậy{q}? {Me} rất tò mò về hành trình ấy.",
+    "Dành thời gian cho {s} là một cách chăm sóc tâm hồn thật đẹp. {You} có bí quyết nhỏ nào muốn chia sẻ không{q}?",
+)
+CATEGORY_TEMPLATES = {
+    "bio": "{Me} rất thích cách {you} giới thiệu bản thân: “{s}”. Đọc là thấy ngay nét riêng thật đáng mến của {you}.",
+    "work": "{Me} thấy {you} đang gắn bó với công việc “{s}”. Công việc nào cũng có những vất vả riêng, {me} thật sự nể {you}. "
+    "Điều gì ở công việc này khiến {you} thấy vui nhất{q}?",
+    "education": "{Me} thấy {you} từng học tại “{s}”. Quãng thời gian ấy hẳn có nhiều kỷ niệm đẹp, {you} nhớ nhất điều gì{q}?",
+    "hometown": "Quê {you} ở {s}, nghe thôi đã thấy thân thương. Ở {s} có món ăn hay góc nhỏ nào {you} nhớ nhất không{q}?",
+    "location": "{You} đang sống ở {s}, một nơi có nhiều nét riêng thật đáng yêu. Ở {s}, {you} hay ghé góc nào nhất{q}?",
+    "visual_observation": "Tấm ảnh đại diện của {you} nhìn thật dễ mến, {me} xem mà thấy nhẹ nhõm hẳn. "
+    "Bức ảnh ấy có câu chuyện gì đặc biệt không{q}?",
+    "other": "{Me} có để ý {you} chia sẻ “{s}”. {Me} rất muốn nghe thêm về điều này{q}.",
+}
+HOOK_TOPICS = {
+    "interest": "niềm yêu thích {s} của {you}",
+    "education": "quãng thời gian {you} học tại “{s}”",
+    "hometown": "quê {you} ở {s}",
+    "location": "{s}, nơi {you} đang sống",
+    "other": "điều {you} từng chia sẻ: “{s}”",
+}
+HOOK = "Buổi tối an lành nhé {you}! {Me} chợt nhớ tới {topic}. Khi nào thư thả, {you} kể {me} nghe thêm nhé, {me} luôn sẵn lòng lắng nghe."
+# Brief §2 example ("chia sẻ khoảnh khắc thư giãn sau giờ làm việc"), allowed because the work fact is cited.
+HOOK_WORK = (
+    "Buổi tối an lành nhé {you}! {Me} chúc {you} có những phút thư giãn thật trọn vẹn sau giờ làm việc với “{s}”. "
+    "Khi nào thư thả, {you} kể {me} nghe điều gì khiến {you} vui nhất trong công việc nhé!"
 )
 
 
-def _render_message(fact: Fact, variant: int = 0) -> str:
+def _render_message(fact: Fact, variant: int, addressing: Addressing) -> str:
     s = _clip(fact.statement)
     if fact.category == "post":
-        return POST_TEMPLATES[variant % len(POST_TEMPLATES)].format(s=s)
-    if fact.category == "interest":
-        return INTEREST_TEMPLATES[variant % len(INTEREST_TEMPLATES)].format(s=s)
-    if fact.category == "bio":
-        return f"Mình rất thích phần giới thiệu của bạn: “{s}”."
-    if fact.category == "work":
-        return f"Mình thấy bạn có ghi “{s}” ở phần công việc. Bạn thấy điều gì thú vị nhất trong công việc này?"
-    if fact.category == "education":
-        return f"Mình thấy bạn có ghi “{s}” ở phần học vấn. Quãng thời gian đó có kỷ niệm nào đáng nhớ không bạn?"
-    if fact.category == "location":
-        if fact.source.endswith("hometown"):
-            return f"Mình thấy bạn có ghi quê ở {s}. Ở {s} có điều gì bạn nhớ nhất không?"
-        return f"Mình thấy bạn có ghi nơi sống hiện tại là {s}. Ở {s} bạn thích ghé chỗ nào nhất?"
-    if fact.category == "visual_observation":
-        return f"Mình có xem ảnh đại diện của bạn ({s}). Bức ảnh đó có câu chuyện gì đặc biệt không?"
-    return f"Mình có để ý bạn ghi “{s}”. Bạn có thể kể thêm không?"
-
-
-def _render_hook(fact: Fact) -> str:
-    s = _clip(fact.statement)
-    if fact.category == "interest":
-        topic = f"sở thích {s} mà bạn có nhắc đến"
-    elif fact.category == "work":
-        topic = f"công việc “{s}” bạn có ghi trên trang cá nhân"
-    elif fact.category == "education":
-        topic = f"quãng thời gian ở “{s}” bạn có ghi trên trang cá nhân"
-    elif fact.category == "location":
-        topic = f"{s} mà bạn có ghi trên trang cá nhân"
+        template = POST_TEMPLATES[variant % len(POST_TEMPLATES)]
+    elif fact.category == "interest":
+        template = INTEREST_TEMPLATES[variant % len(INTEREST_TEMPLATES)]
+    elif fact.category == "location" and fact.source.endswith("hometown"):
+        template = CATEGORY_TEMPLATES["hometown"]
     else:
-        topic = f"điều bạn từng chia sẻ: “{s}”"
-    return f"Chào buổi tối! Mình chợt nhớ tới {topic}. Khi nào rảnh, bạn kể mình nghe thêm nhé?"
+        template = CATEGORY_TEMPLATES.get(fact.category, CATEGORY_TEMPLATES["other"])
+    return _fill(template, addressing, s)
+
+
+def _render_hook(fact: Fact, addressing: Addressing) -> str:
+    if fact.category == "work":
+        return _fill(HOOK_WORK, addressing, _clip(fact.statement))
+    key = "hometown" if fact.category == "location" and fact.source.endswith("hometown") else fact.category
+    topic = HOOK_TOPICS.get(key, HOOK_TOPICS["other"])
+    return _fill(HOOK.replace("{topic}", topic), addressing, _clip(fact.statement))
 
 
 _DOUBLE_PUNCT = re.compile(r"([.!?…])”\.")
@@ -93,72 +117,101 @@ def _tidy(text: str) -> str:
     return _DOUBLE_PUNCT.sub(r"\1”", text)
 
 
-def _message_for(fact: Fact, variant: int = 0) -> str:
-    return _tidy(_render_message(fact, variant))
+def _message_for(fact: Fact, variant: int = 0, addressing: Addressing = NEUTRAL_ADDRESSING) -> str:
+    return _tidy(_render_message(fact, variant, addressing))
 
 
-def _hook_for(fact: Fact) -> str:
-    return _tidy(_render_hook(fact))
+def _hook_for(fact: Fact, addressing: Addressing = NEUTRAL_ADDRESSING) -> str:
+    return _tidy(_render_hook(fact, addressing))
+
+
+def _avatar_greeting(ledger: FactLedger, name: Fact | None, addressing: Addressing) -> DraftMessage | None:
+    """Warm greeting + first impression of the profile picture, grounded on the image description (FR-019)."""
+    visual = next((f for f in ledger.facts if f.category == "visual_observation"), None)
+    if visual is None:
+        return None
+    if addressing.is_neutral:
+        hello = f"Chào {name.statement}!" if name else "Chào bạn!"
+    else:
+        hello = _fill("{Me} chào {you} {name} ạ!", addressing, name=_short_name(name.statement) if name else "").replace("  ", " ")
+    text = f"{hello} {_fill(AVATAR_IMPRESSION, addressing)}"
+    if not _passes(text, visual, ledger, "messages[0]"):
+        return None
+    return DraftMessage(text=text, kind="grounded", fact_ids=[*([name.id] if name else []), visual.id])
+
+
+def _short_name(full: str) -> str:
+    """Vietnamese given name for "chị/anh <name>": the last two words of a 3+ word name."""
+    words = full.split()
+    return " ".join(words[-2:]) if len(words) >= 3 else full
 
 
 def _passes(text: str, fact: Fact, ledger: FactLedger, location: str) -> bool:
     return not check_text(text, location, [fact]) and not check_entities(text, location, [fact], ledger.name_fact())
 
 
-def _grounded_candidates(ledger: FactLedger) -> list[tuple[Fact, str]]:
+def _grounded_candidates(ledger: FactLedger, addressing: Addressing) -> list[tuple[Fact, str]]:
     usable = ledger.usable_facts()
     ordered = sorted(usable, key=lambda f: (CATEGORY_ORDER.index(f.category) if f.category in CATEGORY_ORDER else 99, int(f.id[1:])))
     out = []
     per_category: dict[str, int] = {}
     for fact in ordered:
         variant = per_category.get(fact.category, 0)
-        text = _message_for(fact, variant)
+        text = _message_for(fact, variant, addressing)
         if _passes(text, fact, ledger, "messages"):
             out.append((fact, text))
             per_category[fact.category] = variant + 1
     return out
 
 
-def generate_deterministic(ledger: FactLedger, target_count: int = MAX_MESSAGES) -> EngagementDraft:
+def generate_deterministic(
+    ledger: FactLedger, target_count: int = MAX_MESSAGES, addressing: Addressing = NEUTRAL_ADDRESSING
+) -> EngagementDraft:
     """Build a draft from the ledger. Raises ValueError if there is nothing usable to ground on."""
-    candidates = _grounded_candidates(ledger)
+    candidates = _grounded_candidates(ledger, addressing)
     if not candidates:
-        raise ValueError("no usable facts to ground rapport messages on")
+        raise ValueError("không có thông tin nào dùng được làm căn cứ cho tin nhắn")
 
     # The strongest fact becomes the evening hook; it is not repeated in the sequence when others remain.
     hook = None
     for fact, _ in candidates:
-        text = _hook_for(fact)
+        text = _hook_for(fact, addressing)
         if _passes(text, fact, ledger, "evening_hook"):
             hook = CitedText(text=text, fact_ids=[fact.id])
             break
     if hook is None:
-        raise ValueError("no fact could ground an evening hook")
+        raise ValueError("không có thông tin nào làm căn cứ được cho câu mồi 20h")
     # Reserving it needs ≥ 3 other facts so the sequence can stay at least half grounded.
     if len(candidates) >= 4:
         candidates = [(f, t) for f, t in candidates if f.id != hook.fact_ids[0]]
 
     name = ledger.name_fact()
+    greeting = _avatar_greeting(ledger, name, addressing)
+    if greeting is not None:
+        # The avatar is already acknowledged in the greeting; do not repeat it as a separate message.
+        candidates = [(f, t) for f, t in candidates if f.id not in greeting.fact_ids]
+    grounded_greeting = 1 if greeting is not None else 0
     neutral_pool = len(NEUTRAL_QUESTIONS) + 2  # greeting + questions + closing
     g_available = len(candidates)
     n = min(max(target_count, MIN_MESSAGES), MAX_MESSAGES, g_available + neutral_pool)
     if len(ledger.usable_facts()) >= 3:
-        n = min(n, 2 * g_available)  # keep ≥ ⌈n/2⌉ grounded
+        n = min(n, 2 * (g_available + grounded_greeting))  # keep ≥ ⌈n/2⌉ grounded
     n = max(n, MIN_MESSAGES)
-    if len(ledger.usable_facts()) >= 3 and g_available < math.ceil(n / 2):
-        raise ValueError("too few facts are safe to quote to keep the sequence at least half grounded")
+    if len(ledger.usable_facts()) >= 3 and g_available + grounded_greeting < math.ceil(n / 2):
+        raise ValueError("quá ít thông tin an toàn để trích dẫn, không giữ được tối thiểu một nửa số tin nhắn có căn cứ")
     min_neutral = 3 if n >= 8 else 1  # greeting (+ one open question + closing in longer sequences)
     g = min(g_available, n - min_neutral)
     neutral_needed = n - g
 
-    greeting = DraftMessage(
-        text=f"Chào {name.statement}, mình rất vui được làm quen với bạn!" if name else "Chào bạn, mình rất vui được làm quen với bạn!",
-        kind="neutral",
-        fact_ids=[name.id] if name else [],
-    )
+    if greeting is None:
+        if addressing.is_neutral:
+            greeting_text = GREETING_NEUTRAL.format(name=name.statement) if name else "Chào bạn, mình rất vui được làm quen với bạn!"
+        else:
+            greeting_text = _fill(GREETING_POLITE, addressing, name=_short_name(name.statement) if name else "").replace("  ", " ")
+        greeting = DraftMessage(text=greeting_text, kind="neutral", fact_ids=[name.id] if name else [])
     extras = neutral_needed - 1
-    closing = [DraftMessage(text=CLOSING, kind="neutral")] if extras >= 1 else []
-    questions = [DraftMessage(text=q, kind="neutral") for q in NEUTRAL_QUESTIONS[: max(extras - 1, 0)]]
+    closing = [DraftMessage(text=_fill(CLOSING, addressing), kind="neutral")] if extras >= 1 else []
+    questions = [DraftMessage(text=_fill(q, addressing), kind="neutral") for q in NEUTRAL_QUESTIONS[: max(extras - 1, 0)]]
     grounded = [DraftMessage(text=text, kind="grounded", fact_ids=[fact.id]) for fact, text in candidates[:g]]
 
     # Interleave: a neutral question after every three grounded messages.
@@ -175,8 +228,7 @@ def generate_deterministic(ledger: FactLedger, target_count: int = MAX_MESSAGES)
 
     angle_facts = [ledger.get(hook.fact_ids[0])] + [fact for fact, _ in candidates[:1]]
     angle = CitedText(
-        text="Quan tâm chân thành tới những điều bạn ấy tự chia sẻ công khai: "
-        + "; ".join(f"“{_clip(f.statement, 60)}”" for f in angle_facts),
+        text=_fill(ANGLE, addressing, "; ".join(f"“{_clip(f.statement, 60)}”" for f in angle_facts)),
         fact_ids=[f.id for f in angle_facts],
     )
 

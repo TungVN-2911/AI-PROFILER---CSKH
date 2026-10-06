@@ -85,7 +85,7 @@ def run_pipeline(
         return _run(raw_url, options, settings, llm_client, http_transport)
     except Exception as exc:  # INTERNAL_ERROR catch-all: never crash, never invent
         log.exception("unexpected pipeline error")
-        note = f"INTERNAL_ERROR: unexpected {type(exc).__name__}; no profile output was produced and nothing was invented."
+        note = f"INTERNAL_ERROR: Lỗi ngoài dự kiến ({type(exc).__name__}); không tạo kết quả và không bịa thông tin nào."
         return _partial(raw_url or "", note, EXIT_INTERNAL, technical_limitations=[note])
 
 
@@ -130,10 +130,11 @@ def _run(
 
     # 4. Normalization + visual context (readable profiles only)
     ledger = build_ledger(acq.raw)
-    visual_context = "NOT_AVAILABLE: profile content is not accessible"
+    visual_context = "NOT_AVAILABLE: không truy cập được nội dung trang cá nhân"
+    visual_available = False
     if acq.access_state in READABLE_STATES:
         vision = extract_visual_context(acq.raw, ledger, llm, transport=http_transport)
-        ledger, visual_context = vision.ledger, vision.visual_context
+        ledger, visual_context, visual_available = vision.ledger, vision.visual_context, vision.available
         limitations += vision.notes
 
     common = dict(
@@ -152,12 +153,21 @@ def _run(
         note = " | ".join([gate.note, *details])
         return _partial(url.url, note, EXIT_OK, technical_limitations=limitations, **common)
 
+    # 5b. Brief §4 (CR-001): no collectable / readable public image → PARTIAL_OR_PRIVATE, never an invented scene.
+    if not visual_available:
+        reason = visual_context.removeprefix("NOT_AVAILABLE: ")
+        note = (
+            f"NO_IMAGE: Không thu thập hoặc không đọc được hình ảnh công khai nào ({reason}); "
+            "trang cá nhân chỉ đọc được một phần nên không tạo mô tả hình ảnh và tin nhắn."
+        )
+        return _partial(url.url, note, EXIT_OK, technical_limitations=[*limitations, note], **common)
+
     # 6. Intelligence + generation
     intel = build_intelligence(ledger, options.reference_year)
-    gen = generate_engagement(ledger, settings, llm)
+    gen = generate_engagement(ledger, settings, llm, intel.addressing)
     if gen.draft is None:
         note = (
-            "INSUFFICIENT_DATA: grounded rapport messages could not be produced without inventing content"
+            "INSUFFICIENT_DATA: Không thể viết tin nhắn có căn cứ mà không bịa nội dung"
             f" ({gen.error})."
         )
         return _partial(url.url, note, EXIT_OK, technical_limitations=limitations,
@@ -202,10 +212,13 @@ def _success(url, ledger: FactLedger, intel, gen: GenerationResult, visual_conte
     evidence = EvidenceReport(
         facebook_url=url,
         output_status="SUCCESS",
+        addressing=intel.addressing.label(),
         generation_mode=gen.mode,
         model_id=gen.model_id,
         grounding=Grounding(
             core_empathy_angle=draft.core_empathy_angle.fact_ids,
+            gender=intel.gender_fact_ids,
+            estimated_age_range=intel.age_fact_ids,
             apparent_lifestyle=lifestyle_ids,
             messages=[MessageGrounding(index=i, kind=m.kind, fact_ids=m.fact_ids) for i, m in enumerate(draft.messages)],
             evening_hook=draft.evening_hook.fact_ids,

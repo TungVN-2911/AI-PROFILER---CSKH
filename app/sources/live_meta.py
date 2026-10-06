@@ -22,12 +22,12 @@ USER_AGENT = "FacebookProfilerAgent/0.1 (+TES-3808 test)"
 MAX_BODY_BYTES = 2_000_000
 
 SCOPE_NOTE = (
-    "Live fetch reads only public HTML meta tags (og:title, og:description, og:image) from one "
-    "unauthenticated request; posts, About details and most profile content are not accessible without login."
+    "Chế độ --live chỉ đọc các thẻ meta HTML công khai (og:title, og:description, og:image) từ một request "
+    "không đăng nhập; bài đăng, mục Giới thiệu và phần lớn nội dung trang cá nhân không truy cập được nếu không đăng nhập."
 )
 LOGIN_LIMITATION = (
-    "TECHNICAL LIMITATION: Facebook returned a login/checkpoint page for this profile. The agent does not "
-    "log in or bypass access controls. Provide the profile data with --profile-file instead."
+    "TECHNICAL LIMITATION: Facebook trả về trang đăng nhập/xác minh (checkpoint) cho trang cá nhân này. Agent không "
+    "đăng nhập hay vượt qua cơ chế kiểm soát truy cập. Hãy cung cấp dữ liệu qua --profile-file."
 )
 
 LOGIN_PATH_MARKERS = ("/login", "checkpoint", "captcha", "/recover")
@@ -102,15 +102,15 @@ class LivePublicMetaSource:
                 response = client.get(url.url)
                 body = response.content[:MAX_BODY_BYTES].decode(response.encoding or "utf-8", errors="replace")
         except httpx.TimeoutException:
-            return self._fail(url, AccessState.UNREACHABLE, "UNREACHABLE: request to facebook.com timed out.")
+            return self._fail(url, AccessState.UNREACHABLE, "UNREACHABLE: Request tới facebook.com bị quá thời gian chờ.")
         except httpx.HTTPError as exc:
-            return self._fail(url, AccessState.UNREACHABLE, f"UNREACHABLE: network error ({type(exc).__name__}).")
+            return self._fail(url, AccessState.UNREACHABLE, f"UNREACHABLE: Lỗi mạng ({type(exc).__name__}).")
         return self._classify(url, response, body)
 
     def _classify(self, url: CanonicalUrl, response: httpx.Response, body: str) -> AcquisitionResult:
         status = response.status_code
         if status in (404, 410):
-            return self._fail(url, AccessState.NOT_FOUND, f"NOT_FOUND: Facebook returned HTTP {status}.")
+            return self._fail(url, AccessState.NOT_FOUND, f"NOT_FOUND: Facebook trả về HTTP {status}.")
         if 300 <= status < 400:
             location = response.headers.get("location", "")
             if any(m in location.lower() for m in LOGIN_PATH_MARKERS):
@@ -118,16 +118,16 @@ class LivePublicMetaSource:
             return self._fail(
                 url,
                 AccessState.UNREACHABLE,
-                f"UNREACHABLE: Facebook redirected (HTTP {status}) and redirects are not followed "
-                "under the single-request policy.",
+                f"UNREACHABLE: Facebook chuyển hướng (HTTP {status}); agent không đi theo chuyển hướng "
+                "vì chỉ gửi đúng một request.",
             )
         if status != 200:
             return self._fail(
-                url, AccessState.UNREACHABLE, f"UNREACHABLE: Facebook returned HTTP {status}; not retried."
+                url, AccessState.UNREACHABLE, f"UNREACHABLE: Facebook trả về HTTP {status}; không thử lại."
             )
 
         if NOT_FOUND_BODY_MARKERS.search(body):
-            return self._fail(url, AccessState.NOT_FOUND, "NOT_FOUND: Facebook reports the content is not available.")
+            return self._fail(url, AccessState.NOT_FOUND, "NOT_FOUND: Facebook báo nội dung không còn khả dụng.")
 
         meta = parse_meta(body)
         name = TITLE_SUFFIX.sub("", meta.get("og:title", "")).strip()
@@ -138,7 +138,7 @@ class LivePublicMetaSource:
         return self._fail(
             url,
             AccessState.NO_ACCESSIBLE_DATA,
-            "TECHNICAL LIMITATION: the public page contained no profile meta tags.",
+            "TECHNICAL LIMITATION: Trang công khai không có thẻ meta nào về trang cá nhân.",
         )
 
     def _public(self, url: CanonicalUrl, name: str, meta: dict[str, str]) -> AcquisitionResult:

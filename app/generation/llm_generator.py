@@ -15,6 +15,7 @@ from app.config import Settings
 from app.generation.deterministic import generate_deterministic
 from app.generation.prompts import SYSTEM_PROMPT, build_user_prompt
 from app.guardrails import EngagementDraft, validate_draft
+from app.intel import NEUTRAL_ADDRESSING, Addressing
 from app.llm.base import LLMClient, LLMError
 from app.models import FactLedger
 
@@ -34,12 +35,16 @@ class GenerationResult:
     error: str | None = None
 
 
-def _llm_attempts(ledger: FactLedger, settings: Settings, llm: LLMClient, result: GenerationResult) -> EngagementDraft | None:
+def _llm_attempts(
+    ledger: FactLedger, settings: Settings, llm: LLMClient, result: GenerationResult, addressing: Addressing
+) -> EngagementDraft | None:
     feedback: list[str] | None = None
     for _ in range(1 + settings.llm_max_retries):
         result.attempts += 1
         n = result.attempts
-        prompt = build_user_prompt(ledger, settings.default_message_count, settings.output_language, feedback)
+        prompt = build_user_prompt(
+            ledger, settings.default_message_count, settings.output_language, feedback, addressing
+        )
         try:
             draft = llm.generate_structured(system=SYSTEM_PROMPT, user=prompt, output_model=EngagementDraft)
         except LLMError as exc:
@@ -60,25 +65,31 @@ def _llm_attempts(ledger: FactLedger, settings: Settings, llm: LLMClient, result
     return None
 
 
-def generate_engagement(ledger: FactLedger, settings: Settings, llm: LLMClient | None) -> GenerationResult:
+def generate_engagement(
+    ledger: FactLedger,
+    settings: Settings,
+    llm: LLMClient | None,
+    addressing: Addressing = NEUTRAL_ADDRESSING,
+) -> GenerationResult:
     result = GenerationResult(draft=None, mode="none", model_id=llm.model_id if llm else None)
 
     if llm is not None:
-        draft = _llm_attempts(ledger, settings, llm, result)
+        draft = _llm_attempts(ledger, settings, llm, result, addressing)
+        result.model_id = llm.model_id  # the model that actually served (may be a fallback model)
         if draft is not None:
             result.draft, result.mode = draft, "llm"
             return result
         result.history.append("LLM drafts exhausted; falling back to the deterministic generator")
 
     try:
-        draft = generate_deterministic(ledger, settings.default_message_count)
+        draft = generate_deterministic(ledger, settings.default_message_count, addressing)
     except ValueError as exc:
-        result.error = f"deterministic generator could not build a grounded draft: {exc}"
+        result.error = f"bộ sinh tin nhắn mẫu không tạo được bản nháp có căn cứ: {exc}"
         return result
     violations = validate_draft(draft, ledger)
     if violations:
         result.history.extend(f"deterministic: {v}" for v in violations)
-        result.error = "deterministic draft failed validation"
+        result.error = "bản nháp mẫu không qua được kiểm tra"
         return result
     result.draft, result.mode = draft, "deterministic"
     return result

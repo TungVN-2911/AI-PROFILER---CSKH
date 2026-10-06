@@ -264,7 +264,7 @@ One structured call generates all three to keep tone coherent; validated per sec
 | Network error / timeout | UNREACHABLE | PARTIAL_OR_PRIVATE | `UNREACHABLE:` | 0 |
 | Accessible but below sufficiency gate | PUBLIC/PARTIAL | PARTIAL_OR_PRIVATE | `INSUFFICIENT_DATA:` | 0 |
 | Generators cannot build a draft that passes the guardrails | PUBLIC/PARTIAL | PARTIAL_OR_PRIVATE | `INSUFFICIENT_DATA:` | 0 |
-| No image | — | SUCCESS (visual_context `NOT_AVAILABLE: …`) | — | 0 |
+| No collectable / readable public image (CR-001) | PUBLIC/PARTIAL | PARTIAL_OR_PRIVATE | `NO_IMAGE:` | 0 |
 | LLM failure after retries | — | SUCCESS via deterministic (mode recorded in evidence) | — | 0 |
 | Unexpected exception | — | PARTIAL_OR_PRIVATE | `INTERNAL_ERROR:` | 1 |
 
@@ -317,3 +317,53 @@ Validator.validate(draft, ledger) -> list[Violation]
 - Images are only read from provided local files or URLs present in provided data/public meta; no crawling.
 - Real-run outputs go to `runs/` (git-ignored); repo contains synthetic data only.
 - `TECHNICAL LIMITATION` text is surfaced in `error_note` and `evidence.json` — never hidden.
+
+---
+
+## 9. Change Request CR-001 (original brief review, 2026-10-06)
+
+- **No image → PARTIAL (TASK-021).** After the sufficiency gate, the pipeline requires an available visual context
+  (`VisualContextResult.available`): a kept provided image description or ≥ 1 accepted vision observation. Otherwise it
+  stops with `PARTIAL_OR_PRIVATE` / `NO_IMAGE: <reason>` before any generation.
+- **Perceived demographic estimate (TASK-022).** `VisionResult` gains an optional `estimate`
+  (`single_person_visible`, `perceived_gender` female/male/unclear + confidence, `age_min`/`age_max` + confidence),
+  requested in the same vision call. Accepted estimates (thresholds in FR-008) become ledger entries with categories
+  `perceived_gender` / `perceived_age`, status **INFERENCE**, source `vision:<kind>:estimate`. They are never shown to the
+  message generator and can never be cited (INFERENCE + non-grounding category). `app/intel.py` precedence:
+  self-declared → perceived estimate → `UNKNOWN`. Evidence grounding records the ids behind gender and age.
+- **Forms of address (TASK-023).** `app/intel.py` derives an `Addressing` (customer "chị"/"anh"/"bạn", agent
+  "em"/"mình", basis). Deterministic templates are parameterised with it; the LLM user prompt states it (the system
+  prompt stays static). Evidence records the addressing and its basis.
+
+## 10. Change Request CR-002 (brand & product domain, 2026-10-06)
+
+- `app/lexicons.py`: `BRAND_PATTERN` (Dr.Bee spellings, absolute), `PRODUCT_TOPIC_HARD` (hair/scalp problems and hair-care
+  products, absolute) and `PRODUCT_TOPIC_SOFT` (generic beauty/pharma words, tolerated only when verbatim in a cited fact).
+- `app/guardrails.check_text`: violations `BRAND_MENTION` and `PRODUCT_TOPIC`. Unlike other sales terms, brand and hard
+  product terms ignore the cited-fact exemption.
+- `app/generation/prompts.py`: the static system prompt names the brand and the product domain as forbidden topics; facts
+  whose text contains the brand or a hard product term are left out of the `<facts>` block (they can never be used).
+- The deterministic generator already drops any candidate that fails `check_text`, so such facts are never quoted.
+
+## 11. Change Request CR-003 (2026-10-06)
+
+- **Vietnamese text (TASK-025).** All human-readable strings (input errors, source errors, gate notes, live-fetch notes,
+  visual context, demographics, pipeline notes) are Vietnamese; the status-code prefixes listed in FR-018 stay unchanged so
+  that consumers can still branch on them.
+- **Emotional quality (TASK-026).** Guardrails: family-category sensitive terms are tolerated when a cited fact contains a
+  family-category term; work-related evening phrases are tolerated when a work fact is cited; `visual_observation`
+  INFERENCE entries (AI vision) become citable, `perceived_*` estimates stay non-citable. Templates are rewritten for warmth
+  and the greeting mentions the profile picture when a description exists. The LLM system prompt gains a style guide.
+- **Real-profile tooling (TASK-027).** `scripts/new_profile.py` (template for consented data entry) and
+  `scripts/run_test_profiles.py --profiles-dir` (batch run, results in `runs/`).
+
+## 12. Change Request CR-004 — Gemini provider (2026-10-06)
+
+- `app/llm/gemini_client.py` implements `LLMClient` with the official `google-genai` SDK (only module importing it):
+  `models.generate_content` with `system_instruction`, `response_mime_type="application/json"` and
+  `response_json_schema` (Pydantic schema with local `$ref`s inlined); images as `types.Part.from_bytes`. The finish
+  reason (SAFETY / PROHIBITED_CONTENT / … → `refusal`, MAX_TOKENS → `max_tokens`) and `prompt_feedback.block_reason`
+  are checked before the JSON text is validated with Pydantic. SDK errors map to `LLMError` kinds (401/403 auth, 429
+  rate_limited, other API errors, timeouts).
+- `Settings`: `LLM_PROVIDER` (auto | anthropic | gemini), `GEMINI_API_KEY`, `GEMINI_MODEL` (default `gemini-3.8-flash`).
+  `get_llm_client` resolves the provider; the rest of the pipeline is unchanged (provider isolation, NFR-005).

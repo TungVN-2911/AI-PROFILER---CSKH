@@ -3,10 +3,16 @@
 Usage:  python scripts/run_test_profiles.py
 Writes: test_results.json, and output.json / evidence.json from the public-rich run (repo root).
 Per-case files go to runs/test_run/<case>/ (git-ignored).
+
+Real profiles with consent (FR-020):
+        python scripts/run_test_profiles.py --profiles-dir runs/real [--results FILE] [--runs-dir DIR]
+Runs every *.json profile file in the folder (see scripts/new_profile.py) and writes runs/test_results_real.json.
+Committed artifacts (test_results.json, output.json, evidence.json) are never touched in this mode.
 """
 
 from __future__ import annotations
 
+import argparse
 import json
 import os
 import platform
@@ -22,14 +28,16 @@ sys.path.insert(0, str(ROOT))
 
 from app.config import load_settings  # noqa: E402
 from app.schema import SuccessOutput, parse_output  # noqa: E402
+from app.sources.base import SourceError  # noqa: E402
+from app.sources.provided import load_raw_profile  # noqa: E402
 
 RUN_DIR = ROOT / "runs" / "test_run"
 
 DATA_NOTE = (
-    "TECHNICAL LIMITATION: profile cases use synthetic fixture personas (fixtures/profiles, 'synthetic': true), "
-    "not real Facebook data. Facebook requires login for nearly all profile content and this agent does not log in "
-    "or bypass access controls; the 'live_facebook_attempt' case documents what one unauthenticated request "
-    "actually returns."
+    "TECHNICAL LIMITATION: các trường hợp profile dùng persona thử nghiệm giả lập (fixtures/profiles, 'synthetic': true), "
+    "không phải dữ liệu Facebook thật. Facebook yêu cầu đăng nhập để xem gần như toàn bộ nội dung trang cá nhân và agent "
+    "không đăng nhập hay vượt qua cơ chế kiểm soát truy cập; trường hợp 'live_facebook_attempt' ghi lại kết quả thực tế "
+    "của một request không đăng nhập. Để chạy trên profile thật (có sự đồng ý), xem README mục 'Running on real profiles'."
 )
 
 CASES = [
@@ -37,13 +45,15 @@ CASES = [
      "args": ["--url", "https://www.facebook.com/fixture.minh.anh"]},
     {"case": "partial_access", "purpose": "PARTIAL access, name + 2 facts → shorter grounded sequence",
      "args": ["--url", "https://www.facebook.com/fixture.thu.ha"]},
-    {"case": "public_no_image", "purpose": "No public image → visual_context NOT_AVAILABLE",
+    {"case": "public_no_image", "purpose": "No public image → PARTIAL_OR_PRIVATE / NO_IMAGE (brief §4)",
      "args": ["--url", "https://www.facebook.com/fixture.quoc.bao"]},
+    {"case": "self_declared_female", "purpose": "Self-declared gender/birth year → labelled demographics, 'chị/em' address",
+     "args": ["--url", "https://www.facebook.com/fixture.khanh.linh"]},
     {"case": "private_profile", "purpose": "Private profile → honest PARTIAL_OR_PRIVATE",
      "args": ["--url", "https://www.facebook.com/fixture.private.user"]},
     {"case": "dead_link", "purpose": "Dead link → NOT_FOUND",
      "args": ["--url", "https://www.facebook.com/fixture.dead.link"]},
-    {"case": "llm_mode_public_rich", "purpose": "Claude generation on the rich profile (requires ANTHROPIC_API_KEY)",
+    {"case": "llm_mode_public_rich", "purpose": "LLM generation on the rich profile (Gemini or Claude; requires an API key)",
      "args": ["--url", "https://www.facebook.com/fixture.minh.anh", "--mode", "llm"], "needs_llm": True},
     {"case": "live_facebook_attempt",
      "purpose": "One unauthenticated public-meta request to facebook.com (Meta's own page, not a private person)",
@@ -51,15 +61,15 @@ CASES = [
 ]
 
 
-def run_case(case: dict, llm_available: bool) -> dict:
+def run_case(case: dict, llm_available: bool, run_dir: Path = RUN_DIR) -> dict:
     entry = {"case": case["case"], "purpose": case["purpose"], "command": "python main.py " + " ".join(
         f'"{a}"' if a.startswith("http") else a for a in case["args"])}
     if case.get("needs_llm") and not llm_available:
-        entry.update(result="NOT_RUN", reason="ANTHROPIC_API_KEY is not configured in this environment; "
-                     "LLM path verified only with a scripted fake client in the test suite.")
+        entry.update(result="NOT_RUN", reason="Môi trường chưa cấu hình ANTHROPIC_API_KEY hoặc GEMINI_API_KEY; "
+                     "nhánh LLM mới chỉ được kiểm chứng bằng client giả lập trong bộ test.")
         return entry
 
-    out_dir = RUN_DIR / case["case"]
+    out_dir = run_dir / case["case"]
     out_dir.mkdir(parents=True, exist_ok=True)
     out_file, ev_file = out_dir / "output.json", out_dir / "evidence.json"
     env = {**os.environ, "PYTHONIOENCODING": ""}
@@ -109,26 +119,24 @@ def run_case(case: dict, llm_available: bool) -> dict:
     return entry
 
 
-def main() -> int:
-    settings = load_settings()
-    llm_available = settings.has_llm_credentials
-    results = [run_case(case, llm_available) for case in CASES]
+REAL_NOTE = (
+    "Dữ liệu trang cá nhân thật được nhập thủ công với sự đồng ý của chủ trang (collection_method=manual_export). "
+    "File này nằm trong runs/ (git-ignore); chỉ công bố khi chủ trang đồng ý."
+)
 
-    public = RUN_DIR / "public_rich"
-    if (public / "output.json").exists():
-        shutil.copyfile(public / "output.json", ROOT / "output.json")
-        shutil.copyfile(public / "evidence.json", ROOT / "evidence.json")
 
-    report = {
+def _report(results: list[dict], settings, note: str) -> dict:
+    return {
         "project": "Facebook Profiler Agent (TES-3808)",
         "generated_at": datetime.now(timezone.utc).isoformat(timespec="seconds"),
         "environment": {
             "python": platform.python_version(),
             "platform": platform.platform(),
-            "llm_available": llm_available,
-            "llm_model": settings.llm_model if llm_available else None,
+            "llm_available": settings.has_llm_credentials,
+            "llm_provider": settings.resolved_provider,
+            "llm_model": settings.active_model,
         },
-        "data_note": DATA_NOTE,
+        "data_note": note,
         "summary": {
             "cases": len(results),
             "pass": sum(r["result"] == "PASS" for r in results),
@@ -137,7 +145,51 @@ def main() -> int:
         },
         "results": results,
     }
-    (ROOT / "test_results.json").write_text(json.dumps(report, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+
+
+def real_profile_results(profiles_dir: Path, llm_available: bool, run_dir: Path) -> list[dict]:
+    results = []
+    for path in sorted(profiles_dir.glob("*.json")):
+        try:
+            url = load_raw_profile(path).facebook_url
+        except SourceError as exc:
+            results.append({"case": path.stem, "result": "FAIL", "reason": str(exc)})
+            continue
+        case = {"case": path.stem, "purpose": f"Trang cá nhân thật (dữ liệu có đồng ý): {path.name}",
+                "args": ["--url", url, "--profile-file", str(path)]}
+        results.append(run_case(case, llm_available, run_dir))
+    return results
+
+
+def main(argv: list[str] | None = None) -> int:
+    parser = argparse.ArgumentParser(description="Run test profiles through the CLI and record the results.")
+    parser.add_argument("--profiles-dir", type=Path, help="folder of consented real profile files (*.json)")
+    parser.add_argument("--results", type=Path, default=ROOT / "runs" / "test_results_real.json",
+                        help="results file for --profiles-dir (default: runs/test_results_real.json)")
+    parser.add_argument("--runs-dir", type=Path, default=ROOT / "runs" / "real_run",
+                        help="per-profile outputs for --profiles-dir (default: runs/real_run)")
+    args = parser.parse_args(argv)
+
+    settings = load_settings()
+    llm_available = settings.has_llm_credentials
+
+    if args.profiles_dir is not None:
+        if not args.profiles_dir.is_dir():
+            print(f"Không tìm thấy thư mục: {args.profiles_dir}", file=sys.stderr)
+            return 2
+        results = real_profile_results(args.profiles_dir, llm_available, args.runs_dir)
+        report = _report(results, settings, REAL_NOTE)
+        args.results.parent.mkdir(parents=True, exist_ok=True)
+        args.results.write_text(json.dumps(report, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+    else:
+        results = [run_case(case, llm_available) for case in CASES]
+        public = RUN_DIR / "public_rich"
+        if (public / "output.json").exists():
+            shutil.copyfile(public / "output.json", ROOT / "output.json")
+            shutil.copyfile(public / "evidence.json", ROOT / "evidence.json")
+        report = _report(results, settings, DATA_NOTE)
+        (ROOT / "test_results.json").write_text(json.dumps(report, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+
     for r in results:
         print(f"{r['case']:<24} {r['result']:<8} {r.get('status') or r.get('reason', '')}", file=sys.stderr)
     return 0 if report["summary"]["fail"] == 0 else 1

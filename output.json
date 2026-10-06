@@ -3,31 +3,31 @@
   "facebook_url": "https://www.facebook.com/fixture.minh.anh",
   "profile_data": {
     "customer_name": "Nguyễn Minh Anh",
-    "visual_context": "PROVIDED IMAGE DESCRIPTION: Ảnh đại diện có vẻ cho thấy một người mặc đồ chạy bộ, đeo số áo, đứng cạnh vạch đích.",
+    "visual_context": "MÔ TẢ ẢNH (từ dữ liệu được cung cấp): Ảnh đại diện có vẻ cho thấy một người mặc đồ chạy bộ, đeo số áo, đứng cạnh vạch đích.",
     "estimated_demographics": {
       "gender": "UNKNOWN",
       "estimated_age_range": "UNKNOWN",
-      "apparent_lifestyle": "INFERENCE: day-to-day life appears to involve stated interests: chạy bộ; làm bánh; cây cảnh trong nhà, stated work: Thiết kế đồ họa tại Studio Lá Xanh (based on F5, F6, F7, F3)"
+      "apparent_lifestyle": "INFERENCE: Bạn yêu thích vận động ngoài trời qua việc chạy bộ và có lối sống gắn liền với sở thích thủ công như làm bánh sourdough hay trồng cây trong nhà."
     }
   },
   "ethical_rapport": {
-    "core_empathy_angle": "Quan tâm chân thành tới những điều bạn ấy tự chia sẻ công khai: “Hoàn thành 10km đầu tiên quanh Hồ Tây sáng nay, mệt nhưng…”; “Mẻ sourdough thứ 3, cuối cùng vỏ bánh cũng giòn 🥖”",
+    "core_empathy_angle": "Mình rất ấn tượng với sự kiên trì của bạn qua những buổi chạy bộ và niềm vui giản dị từ việc chăm sóc cây cối.",
     "dialogue_sequence_10": [
-      "Chào Nguyễn Minh Anh, mình rất vui được làm quen với bạn!",
-      "Bài viết “Mẻ sourdough thứ 3, cuối cùng vỏ bánh cũng giòn 🥖” của bạn làm mình ấn tượng ghê. Lúc đó bạn cảm thấy thế nào?",
-      "Mình nhớ bạn có viết: “Cây trầu bà trên bàn làm việc vừa ra lá mới, mừng ghê.” Chuyện đó có gì thú vị, bạn kể mình nghe với?",
-      "Mình thấy bạn có nhắc đến sở thích chạy bộ. Điều gì khiến bạn gắn bó với chạy bộ vậy?",
-      "Dạo này có điều gì nhỏ nhỏ khiến bạn thấy vui không?",
-      "Bạn bắt đầu thích làm bánh từ khi nào vậy?",
-      "Với cây cảnh trong nhà, bạn có mẹo nhỏ nào muốn chia sẻ cho người mới bắt đầu không?",
-      "Mình rất thích phần giới thiệu của bạn: “Mê cà phê sáng ☕ | Chạy bộ cuối tuần quanh Hồ Tây | Đang tập làm bánh mì sourdough”.",
-      "Mình thấy bạn có ghi “Thiết kế đồ họa tại Studio Lá Xanh” ở phần công việc. Bạn thấy điều gì thú vị nhất trong công việc này?",
-      "Rất vui được trò chuyện với bạn, hẹn sớm nói chuyện tiếp nhé!"
+      "Chào Nguyễn Minh Anh, rất vui được làm quen với bạn nhé.",
+      "Mình nhìn ảnh đại diện thấy có vẻ bạn mặc đồ chạy bộ, đeo số áo và đứng cạnh vạch đích rất năng động.",
+      "Hôm nay của bạn diễn ra thế nào rồi?",
+      "Mình thấy bạn có chia sẻ việc hoàn thành 10km đầu tiên quanh Hồ Tây sáng nay.",
+      "Đó thực sự là một cột mốc rất tuyệt vời đúng không bạn.",
+      "Ngoài chạy bộ ra, mình biết bạn còn thích làm bánh mì sourdough.",
+      "Nghe đến mẻ sourdough thứ ba với phần vỏ bánh giòn là thấy sự tỉ mỉ của bạn trong đó rồi.",
+      "Không gian làm việc của bạn có cây trầu bà vừa ra lá mới nữa, thật là những góc nhỏ bình yên.",
+      "Bạn có hay dành thời gian để chăm sóc khu vườn nhỏ trong nhà vào cuối tuần không?",
+      "Chúc bạn một ngày mới thật nhiều năng lượng và niềm vui nhé."
     ],
     "sales_mention_check": "ZERO_SALES_CONFIRMED"
   },
   "evening_cadence_20pm": {
     "trigger_time": "20:00",
-    "evening_hook_message": "Chào buổi tối! Mình chợt nhớ tới điều bạn từng chia sẻ: “Hoàn thành 10km đầu tiên quanh Hồ Tây sáng nay, mệt nhưng vui!” Khi nào rảnh, bạn kể mình nghe thêm nhé?"
+    "evening_hook_message": "Mình lại nhớ đến hình ảnh cây trầu bà trên bàn làm việc vừa ra lá mới của bạn, chúc bạn có một buổi tối thật thư thái."
   }
 }
