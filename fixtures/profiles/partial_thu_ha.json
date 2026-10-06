@@ -1,0 +1,15 @@
+{
+  "facebook_url": "https://www.facebook.com/fixture.thu.ha",
+  "synthetic": true,
+  "access": {
+    "state": "PARTIAL",
+    "note": "Only the intro section is public; posts and photos are restricted."
+  },
+  "collected_at": "2026-10-06T09:10:00+07:00",
+  "collection_method": "fixture",
+  "display_name": "Lê Thu Hà",
+  "bio": "Giáo viên tiếng Anh, mê đọc sách và trà chiều",
+  "public_info": {
+    "current_city": "Đà Nẵng"
+  }
+}

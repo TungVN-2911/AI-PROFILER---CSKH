@@ -1,0 +1,10 @@
+{
+  "facebook_url": "https://www.facebook.com/fixture.dead.link",
+  "synthetic": true,
+  "access": {
+    "state": "NOT_FOUND",
+    "note": "Link shows \"This content isn't available right now\" (account removed or URL changed)."
+  },
+  "collected_at": "2026-10-06T09:20:00+07:00",
+  "collection_method": "fixture"
+}

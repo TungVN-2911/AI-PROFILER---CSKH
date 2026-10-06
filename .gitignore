@@ -218,3 +218,6 @@ __marimo__/
 
 # Streamlit
 .streamlit/secrets.toml
+
+# Facebook Profiler Agent: outputs of runs on real profiles (never commit personal data)
+runs/

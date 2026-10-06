@@ -1,0 +1,20 @@
+{
+  "facebook_url": "https://www.facebook.com/fixture.khanh.linh",
+  "synthetic": true,
+  "access": { "state": "PUBLIC", "note": "" },
+  "collected_at": "2026-10-06T09:30:00+07:00",
+  "collection_method": "fixture",
+  "display_name": "Vũ Khánh Linh",
+  "bio": "Yêu nhạc acoustic, đang học đàn ukulele",
+  "public_info": {
+    "work": ["Nhân viên thư viện tại Thư viện Hoa Sen"],
+    "interests": ["ukulele", "đọc truyện tranh"],
+    "current_city": "Cần Thơ",
+    "pronouns": "she/her",
+    "gender": "Nữ",
+    "birth_year": 1996
+  },
+  "public_posts": [
+    { "date": "2026-09-30", "text": "Tập xong bài ukulele đầu tiên trọn vẹn, ngón tay hơi đau mà vui." }
+  ]
+}
