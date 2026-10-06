@@ -8,7 +8,7 @@
     "llm_provider": "gemini",
     "llm_model": "gemini-3.5-flash"
   },
-  "data_note": "TECHNICAL LIMITATION: các trường hợp profile dùng persona thử nghiệm giả lập (fixtures/profiles, 'synthetic': true), không phải dữ liệu Facebook thật. Facebook yêu cầu đăng nhập để xem gần như toàn bộ nội dung trang cá nhân và agent không đăng nhập hay vượt qua cơ chế kiểm soát truy cập; trường hợp 'live_facebook_attempt' ghi lại kết quả thực tế của một request không đăng nhập. Để chạy trên profile thật (có sự đồng ý), xem README mục 'Running on real profiles'.",
+  "data_note": "TECHNICAL LIMITATION: các trường hợp profile dùng persona thử nghiệm giả lập (fixtures/profiles, 'synthetic': true), không phải dữ liệu Facebook thật. Facebook yêu cầu đăng nhập để xem gần như toàn bộ nội dung trang cá nhân và agent không đăng nhập hay vượt qua cơ chế kiểm soát truy cập; trường hợp 'live_facebook_attempt' ghi lại kết quả thực tế của một request không đăng nhập. Để chạy trên profile thật (có sự đồng ý), xem README mục 5 'Chạy với trang cá nhân thật (có sự đồng ý)'.",
   "summary": {
     "cases": 8,
     "pass": 8,

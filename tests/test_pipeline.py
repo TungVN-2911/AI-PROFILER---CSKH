@@ -43,7 +43,7 @@ def assert_partial(result, prefix, exit_code=0):
     assert result.evidence.output_status == "PARTIAL_OR_PRIVATE"
 
 
-# --- Error matrix (architecture.md §6) ------------------------------------------------------
+# --- Error matrix -------------------------------------------------------------------------------
 
 
 @pytest.mark.parametrize("url", [None, "", "   "])
@@ -179,7 +179,7 @@ def test_unexpected_exception_is_internal_error(monkeypatch):
     assert result.output.facebook_url == RICH_URL
 
 
-# --- Extra input / configuration errors -----------------------------------------------------
+# --- Extra input / configuration errors ---------------------------------------------------------
 
 
 def test_llm_mode_without_key_is_configuration_error():
@@ -199,7 +199,7 @@ def test_profile_file_for_other_url_is_invalid_input(tmp_path):
     assert_partial(run(RICH_URL, PipelineOptions(mode="deterministic", profile_file=path)), "INVALID_INPUT:", 2)
 
 
-# --- Success path & evidence ---------------------------------------------------------------
+# --- Success path & evidence --------------------------------------------------------------------
 
 
 def test_rich_fixture_success_deterministic_with_full_evidence():

@@ -53,7 +53,7 @@ def set_msg(i, text, kind=None, fact_ids=None):
     return mutate
 
 
-# --- Clean ----------------------------------------------------------------------------------
+# --- Clean --------------------------------------------------------------------------------------
 
 
 def test_clean_draft_has_no_violations():
@@ -71,7 +71,7 @@ def test_no_false_positive_on_fixture_vocabulary():
         assert check_text(fact.statement, "fact") == [], fact.statement
 
 
-# --- Citation rules -------------------------------------------------------------------------
+# --- Citation rules -----------------------------------------------------------------------------
 
 
 def test_unknown_fact_id():
@@ -142,7 +142,7 @@ def test_lifestyle_must_be_labelled():
     assert "LIFESTYLE_LABEL" in codes(v)
 
 
-# --- Zero sales / contact / presumption / sensitive ----------------------------------------
+# --- Zero sales / contact / presumption / sensitive ---------------------------------------------
 
 
 @pytest.mark.parametrize(
@@ -174,7 +174,7 @@ def test_sales_and_contact_detectors(text, code):
     [
         "Chắc bạn vừa đi làm về mệt lắm nhỉ, nghỉ ngơi chút nhé!",
         "Sau một ngày dài, mình mong bạn thư giãn với sourdough.",
-        "Tối nay bạn sẽ nướng thêm sourdough đấy.",  # assertion; the question form is allowed (BUG-003)
+        "Tối nay bạn sẽ nướng thêm sourdough đấy.",  # assertion; the question form is allowed
         "You must be tired after work, enjoy the sourdough!",
     ],
 )
@@ -212,7 +212,7 @@ def test_agent_pronoun_em_is_not_a_claim_about_the_customer():
     assert "NEUTRAL_CLAIM" in codes(validate_draft(claim, LEDGER))
 
 
-# --- Brand & product domain (CR-002, TASK-024) ----------------------------------------------
+# --- Brand & product domain ---------------------------------------------------------------------
 
 
 @pytest.mark.parametrize("text", ["Bên em là Dr.Bee nè chị", "Dr. Bee", "DrBee", "dr bee", "DR.BEE", "Dr-Bee", "Bác sĩ Bee", "Doctor Bee"])
@@ -268,7 +268,7 @@ def test_no_brand_or_product_false_positive_on_any_fixture():
             assert not {v.code for v in check_text(fact.statement, "f")} & {"BRAND_MENTION", "PRODUCT_TOPIC"}, fact.statement
 
 
-# --- Grounded family / work themes (CR-003, TASK-026) ---------------------------------------
+# --- Grounded family / work themes --------------------------------------------------------------
 
 
 def _fact(category, statement, source="fixture:x"):
@@ -298,7 +298,7 @@ def test_post_date_from_source_is_grounded():
     assert codes(check_entities("Ngày 15/10 bạn chạy được 10km đầu tiên!", "m", [post], None)) == {"UNGROUNDED_NUMBER"}
 
 
-# --- BUG-003: false positives seen in live Gemini drafts -------------------------------------
+# --- False positives seen in live Gemini drafts -------------------------------------------------
 
 
 @pytest.mark.parametrize(

@@ -72,7 +72,7 @@ def _clean_list(values: object) -> object:
     return values
 
 
-# --- Provided profile data (fixture / --profile-file format, architecture.md §4.1) ---------
+# --- Provided profile data ----------------------------------------------------------------------
 
 
 class AccessInfo(_Strict):
@@ -137,7 +137,7 @@ class AcquisitionResult(_Strict):
     limitations: list[str] = Field(default_factory=list)
 
 
-# --- Fact ledger ----------------------------------------------------------------------------
+# --- Fact ledger --------------------------------------------------------------------------------
 
 
 class Fact(_Strict):

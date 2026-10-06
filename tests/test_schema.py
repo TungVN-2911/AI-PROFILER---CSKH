@@ -61,7 +61,7 @@ def success_doc(n_messages=5):
     }
 
 
-# --- Strict output schema -------------------------------------------------------------------
+# --- Strict output schema -----------------------------------------------------------------------
 
 
 def test_success_output_serializes_to_exact_brief_key_set():
@@ -153,7 +153,7 @@ def test_parse_output_dispatches_on_status():
         parse_output({"status": "SUCCESS", "facebook_url": "u", "error_note": "x"})
 
 
-# --- Domain models --------------------------------------------------------------------------
+# --- Domain models ------------------------------------------------------------------------------
 
 
 def test_raw_profile_minimal_and_blank_values_become_none():

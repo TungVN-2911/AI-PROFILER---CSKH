@@ -1,6 +1,6 @@
-"""Opt-in, best-effort live source: ONE unauthenticated GET, public HTML meta tags only (FR-005).
+"""Opt-in, best-effort live source: ONE unauthenticated GET, public HTML meta tags only.
 
-Compliance rules (C-001, C-002): no login, no cookies or credentials, honest User-Agent, redirects are
+Compliance rules: no login, no cookies or credentials, honest User-Agent, redirects are
 not followed, no retries, no CAPTCHA solving. A login wall / checkpoint is reported, never worked around.
 """
 

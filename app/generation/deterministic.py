@@ -1,4 +1,4 @@
-"""Deterministic (template) generator: offline, always available, fully grounded (FR-015, NFR-004).
+"""Deterministic (template) generator: offline, always available, fully grounded.
 
 Each grounded message quotes or names exactly one cited fact; neutral messages are greetings or open
 questions that claim nothing about the customer. Every rendered candidate is checked with the guardrails
@@ -32,7 +32,7 @@ NEUTRAL_QUESTIONS = (
 CLOSING = "Trò chuyện cùng {you} thật sự là niềm vui của {me}. Chúc {you} một ngày thật nhẹ nhàng và nhiều niềm vui nhé!"
 GREETING_NEUTRAL = "Chào {name}, mình rất vui được làm quen với bạn!"
 GREETING_POLITE = "{Me} chào {you} {name}, {me} rất vui được làm quen với {you} ạ!"
-# FR-019: the first message mentions a first impression of the profile picture when an image description exists.
+# The first message mentions a first impression of the profile picture when an image description exists.
 AVATAR_IMPRESSION = "{Me} vừa ghé thăm trang cá nhân của {you}, ấn tượng đầu tiên là tấm ảnh đại diện nhìn thật dễ mến."
 ANGLE = "Trân trọng những niềm vui và nỗ lực mà {you} ấy tự chia sẻ: {s}"
 
@@ -81,7 +81,7 @@ HOOK_TOPICS = {
     "other": "điều {you} từng chia sẻ: “{s}”",
 }
 HOOK = "Buổi tối an lành nhé {you}! {Me} chợt nhớ tới {topic}. Khi nào thư thả, {you} kể {me} nghe thêm nhé, {me} luôn sẵn lòng lắng nghe."
-# Brief §2 example ("chia sẻ khoảnh khắc thư giãn sau giờ làm việc"), allowed because the work fact is cited.
+# Work-related evening wish; allowed only because the work fact is cited.
 HOOK_WORK = (
     "Buổi tối an lành nhé {you}! {Me} chúc {you} có những phút thư giãn thật trọn vẹn sau giờ làm việc với “{s}”. "
     "Khi nào thư thả, {you} kể {me} nghe điều gì khiến {you} vui nhất trong công việc nhé!"
@@ -126,7 +126,7 @@ def _hook_for(fact: Fact, addressing: Addressing = NEUTRAL_ADDRESSING) -> str:
 
 
 def _avatar_greeting(ledger: FactLedger, name: Fact | None, addressing: Addressing) -> DraftMessage | None:
-    """Warm greeting + first impression of the profile picture, grounded on the image description (FR-019)."""
+    """Warm greeting + first impression of the profile picture, grounded on the image description."""
     visual = next((f for f in ledger.facts if f.category == "visual_observation"), None)
     if visual is None:
         return None

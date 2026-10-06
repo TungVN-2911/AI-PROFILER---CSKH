@@ -1,4 +1,4 @@
-"""Create a fill-in profile file for a real Facebook profile you have consent to use (FR-020).
+"""Create a fill-in profile file for a real Facebook profile you have consent to use.
 
 Usage:  python scripts/new_profile.py --url "https://www.facebook.com/<username>" [--out FILE] [--force]
 Writes: runs/real/<username or id>.json by default (git-ignored). The agent never collects real data itself.

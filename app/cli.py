@@ -1,4 +1,4 @@
-"""Command-line interface (FR-001, FR-013, NFR-001, NFR-008, NFR-010).
+"""Command-line interface.
 
 stdout receives exactly one JSON document — also for usage and configuration errors — and the same document
 is written to --output. Logs go to stderr only. Exit codes: 0 ok, 2 invalid input/configuration, 1 internal.

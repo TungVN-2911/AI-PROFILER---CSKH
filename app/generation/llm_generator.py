@@ -1,4 +1,4 @@
-"""Engagement generation with bounded LLM retries and a deterministic fallback (FR-015, C-010).
+"""Engagement generation with bounded LLM retries and a deterministic fallback.
 
 Flow: LLM draft → guardrails → (violations as feedback, ≤ LLM_MAX_RETRIES retries) → deterministic draft →
 guardrails. A draft is only returned when it has zero violations; otherwise the result carries no draft

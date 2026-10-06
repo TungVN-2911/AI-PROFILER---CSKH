@@ -36,7 +36,6 @@ class AnthropicLLMClient:
                 max_retries=1,
             )
         self._client = client
-        self.last_served_model: str | None = None
 
     def generate_structured(self, *, system: str, user: str, output_model: type[T]) -> T:
         return self._call(system=system, content=[{"type": "text", "text": user}], output_model=output_model)
@@ -79,7 +78,7 @@ class AnthropicLLMClient:
         except anthropic.APIStatusError as exc:
             raise LLMError("api_error", f"HTTP {exc.status_code}: {exc.message}") from None
 
-        self.last_served_model = getattr(response, "model", None)
+        self.model_id = getattr(response, "model", None) or self.model_id  # a server-side fallback may answer
         if response.stop_reason == "refusal":
             details = getattr(response, "stop_details", None)
             category = getattr(details, "category", None) if details else None

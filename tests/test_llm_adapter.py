@@ -23,7 +23,7 @@ class Echo(BaseModel):
     fact_ids: list[str]
 
 
-# --- Provider isolation ---------------------------------------------------------------------
+# --- Provider isolation -------------------------------------------------------------------------
 
 
 @pytest.mark.parametrize(
@@ -43,7 +43,7 @@ def test_only_the_adapter_imports_its_provider_sdk(pattern, allowed):
     assert offenders == []
 
 
-# --- Factory --------------------------------------------------------------------------------
+# --- Factory ------------------------------------------------------------------------------------
 
 
 def test_factory_deterministic_mode_returns_none_even_with_key():
@@ -66,7 +66,7 @@ def test_factory_auto_with_key_builds_claude_adapter():
     assert client.model_id == "claude-opus-5-5"
 
 
-# --- Fake client ----------------------------------------------------------------------------
+# --- Fake client --------------------------------------------------------------------------------
 
 
 def test_fake_success_from_dict_json_and_model():
@@ -104,7 +104,7 @@ def test_fake_vision():
     assert isinstance(result, VisionResult) and result.observations[0].confidence == 0.9
 
 
-# --- Claude adapter with a stubbed SDK client -----------------------------------------------
+# --- Claude adapter with a stubbed SDK client ---------------------------------------------------
 
 
 class StubSDK:
@@ -214,3 +214,11 @@ def test_adapter_requires_key_when_building_real_client():
     with pytest.raises(LLMError) as exc:
         AnthropicLLMClient(NO_KEY)
     assert exc.value.kind == "no_credentials"
+
+
+def test_adapter_records_the_model_that_answered():
+    stub = StubSDK(reply(json.dumps({"message": "m", "fact_ids": []})))
+    stub.response.model = "claude-opus-4-8"  # e.g. a server-side refusal fallback answered
+    client = adapter(stub)
+    client.generate_structured(system="s", user="u", output_model=Echo)
+    assert client.model_id == "claude-opus-4-8"

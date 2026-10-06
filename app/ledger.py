@@ -1,4 +1,4 @@
-"""Normalization of provided profile data into a fact ledger, and the sufficiency gate (FR-006, FR-009).
+"""Normalization of provided profile data into a fact ledger, and the sufficiency gate.
 
 Every ledger entry is a verbatim (whitespace-trimmed) value from the provided data with its source.
 Nothing is inferred here; missing fields are listed in `unknown_fields`.
@@ -94,7 +94,7 @@ def build_ledger(raw: RawProfile | None) -> FactLedger:
         b.unknown.append("images")
     for i, image in enumerate(raw.images):
         # Provided alt text is a description supplied with the data; a vision description is added later
-        # (TASK-009) only for images without alt text.
+        # only for images without alt text.
         if image.alt_text:
             b.add("visual_observation", image.alt_text, f"images[{i}].alt_text")
 

@@ -30,7 +30,7 @@ def local_image_profile(tmp_path, name="avatar.png"):
     return raw(images=[{"kind": "avatar", "path": name}])
 
 
-# --- No image / alt text --------------------------------------------------------------------
+# --- No image / alt text ------------------------------------------------------------------------
 
 
 def test_no_image_is_not_available():
@@ -58,7 +58,7 @@ def test_sensitive_alt_text_is_removed_from_ledger():
     assert "nhạy cảm" in result.notes[0]
 
 
-# --- Vision model path ----------------------------------------------------------------------
+# --- Vision model path --------------------------------------------------------------------------
 
 
 def test_valid_observations_become_inference_facts_with_vision_source(tmp_path):
@@ -154,7 +154,7 @@ def test_local_image_problems(tmp_path, images, fragment):
     assert fake.calls == []
 
 
-# --- Image URL ------------------------------------------------------------------------------
+# --- Image URL ----------------------------------------------------------------------------------
 
 
 def url_profile():
@@ -189,7 +189,7 @@ def test_image_url_failures(response, fragment):
     assert fake.calls == []
 
 
-# --- Lexicon --------------------------------------------------------------------------------
+# --- Lexicon ------------------------------------------------------------------------------------
 
 
 def test_lexicon_word_boundaries():
@@ -199,7 +199,7 @@ def test_lexicon_word_boundaries():
     assert find_sensitive("Ảnh đại diện có vẻ cho thấy một người mặc đồ chạy bộ, đeo số áo, đứng cạnh vạch đích.") == []
 
 
-# --- Perceived demographic estimate (CR-001, TASK-022) --------------------------------------
+# --- Perceived demographic estimate -------------------------------------------------------------
 
 EST = {"single_person_visible": True, "perceived_gender": "female", "gender_confidence": 0.85,
        "age_min": 25, "age_max": 35, "age_confidence": 0.7}

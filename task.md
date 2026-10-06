@@ -48,8 +48,9 @@
 | TASK-028 | CR-004: Gemini LLM provider | DONE | 025 |
 | BUG-002 | Gemini default model overloaded (503/504); SDK AFC warning | DONE | (related TASK-028) |
 | BUG-003 | Guardrail false positives found in live Gemini drafts | DONE | (related TASK-011, TASK-026) |
+| TASK-029 | Clean code (redundant comments) + Vietnamese README | DONE | — |
 
-Counts: TODO 0 · IN_PROGRESS 0 · BLOCKED 0 · DONE 31 · SKIPPED 0
+Counts: TODO 0 · IN_PROGRESS 0 · BLOCKED 0 · DONE 32 · SKIPPED 0
 
 ---
 
@@ -1950,3 +1951,62 @@ Notes:
 - Trade-off: slang price "3 củ thôi" is no longer caught (to stop flagging "3 củ khoai"); zero-sales prompt and
   sales-word lexicon remain.
 - Each regeneration made one unauthenticated request to facebook.com/facebook (LOGIN_REQUIRED) — 3 in this phase.
+
+---
+
+## TASK-029 — Clean code (redundant comments) + Vietnamese README
+
+Status: DONE
+Priority: MEDIUM
+Dependencies: None
+Requirements: user request 2026-10-06 ("clean code, xóa bỏ các comment thừa, readme chuyển sang tiếng việt")
+
+Goal:
+Leave the code readable without process noise, and give Vietnamese users a Vietnamese README.
+
+Scope:
+- app/, scripts/, main.py, tests/: remove process-tracking references in comments/docstrings (CR-/BUG-/FR-/TASK-…,
+  "architecture.md §", "brief §") and comments that restate the code; keep short comments that explain *why*.
+- Check for dead code (unused functions / constants) with a temporary tool.
+- README.md (and fixtures/README.md) translated to Vietnamese; commands and code identifiers unchanged.
+- No behaviour change.
+
+Acceptance Criteria:
+- [x] No process IDs left in app/ / scripts/ / main.py comments or docstrings; no dead code reported.
+- [x] README.md and fixtures/README.md are Vietnamese; every command still matches the code.
+- [x] Full test suite passes; pyflakes clean; CLI output unchanged for the fixtures.
+
+Expected Files:
+- app/**/*.py, scripts/*.py, tests/*.py (comments only), README.md, fixtures/README.md
+
+Test:
+- `python -m pytest -q`
+
+Completed:
+- Comments/docstrings in 30 files under app/, scripts/, tests/ no longer carry CR-/BUG-/FR-/TASK- ids,
+  "architecture.md §" or "brief §" references; "why" comments kept, comments that restated the code removed,
+  section dividers normalised to width 100.
+- Dead code: `AnthropicLLMClient.last_served_model` was written but never read; the adapter now records the model that
+  actually answered in `model_id` (as the Gemini adapter does), covered by `test_adapter_records_the_model_that_answered`.
+  Other vulture hits were false positives (Pydantic fields/validators, HTMLParser hooks, FakeLLMClient API).
+- README.md translated to Vietnamese (same sections 1–10; commands, env vars, paths, JSON examples and status codes
+  unchanged). fixtures/README.md translated.
+- The `data_note` pointer to the README section ("Running on real profiles") now names the Vietnamese section, in
+  scripts/run_test_profiles.py and in the committed test_results.json.
+
+Files Changed:
+- app/**/*.py, scripts/*.py, tests/*.py (comments/docstrings), app/llm/anthropic_client.py, tests/test_llm_adapter.py
+- README.md, fixtures/README.md, test_results.json (data_note text only)
+
+Tests:
+- `python -m pytest -q` → 475 passed.
+- pyflakes (temporary install, removed) → clean.
+- All 8 fixture URLs run in deterministic mode before/after the comment clean-up → outputs identical.
+
+Result:
+PASS
+
+Notes:
+- The only remaining "brief §4" text is a data string (`purpose` of the no-image case) in scripts/run_test_profiles.py,
+  which is output, not a comment.
+- requirements.md / architecture.md / plan.md / task.md stay in English (process documents).

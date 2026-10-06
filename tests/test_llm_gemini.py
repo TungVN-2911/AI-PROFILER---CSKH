@@ -1,4 +1,4 @@
-"""Gemini adapter (CR-004) with a stubbed SDK client — no network."""
+"""Gemini adapter with a stubbed SDK client — no network."""
 
 import json
 from types import SimpleNamespace
@@ -61,7 +61,7 @@ def has_ref(node):
     return False
 
 
-# --- Request shape ----------------------------------------------------------------------------
+# --- Request shape ------------------------------------------------------------------------------
 
 
 def test_success_and_request_shape():
@@ -101,7 +101,7 @@ def test_unsupported_image_type_makes_no_call():
     assert exc.value.kind == "unsupported_input" and sdk.models.kwargs is None
 
 
-# --- Response handling ------------------------------------------------------------------------
+# --- Response handling --------------------------------------------------------------------------
 
 
 @pytest.mark.parametrize(
@@ -145,7 +145,7 @@ def test_sdk_errors_are_mapped(error, kind):
     assert exc.value.kind == kind
 
 
-# --- Construction & provider selection --------------------------------------------------------
+# --- Construction & provider selection ----------------------------------------------------------
 
 
 def test_requires_key_when_building_real_client():
@@ -187,7 +187,7 @@ def test_gemini_model_and_provider_configurable_and_key_hidden():
     assert "secret-gemini-123" not in repr(settings)
 
 
-# --- Model fallback chain (BUG-002) -----------------------------------------------------------
+# --- Model fallback chain -----------------------------------------------------------------------
 
 
 class ChainModels:

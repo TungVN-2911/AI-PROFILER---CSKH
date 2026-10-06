@@ -1,4 +1,4 @@
-"""Profile intelligence: `customer_name` and `estimated_demographics` (FR-008, Decision D-3 revised by CR-001).
+"""Profile intelligence: `customer_name` and `estimated_demographics`.
 
 - gender: self-declared gender field, else self-declared pronouns (reported verbatim, never mapped to a gender), else
   a perceived estimate from the profile picture (labelled INFERENCE with confidence), else UNKNOWN. Never from names.
@@ -27,7 +27,7 @@ _GENDER_LABELS = {
 
 @dataclass(frozen=True)
 class Addressing:
-    """Vietnamese forms of address (FR-017): how the agent calls the customer and itself."""
+    """Vietnamese forms of address: how the agent calls the customer and itself."""
 
     customer: str  # "chị" | "anh" | "bạn"
     agent: str  # "em" | "mình"
