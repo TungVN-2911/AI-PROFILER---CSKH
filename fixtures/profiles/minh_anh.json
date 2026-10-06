@@ -1,0 +1,33 @@
+{
+  "facebook_url": "https://www.facebook.com/fixture.minh.anh",
+  "synthetic": true,
+  "access": { "state": "PUBLIC", "note": "" },
+  "collected_at": "2026-10-06T09:00:00+07:00",
+  "collection_method": "fixture",
+  "display_name": "Nguyễn Minh Anh",
+  "bio": "Mê cà phê sáng ☕ | Chạy bộ cuối tuần quanh Hồ Tây | Đang tập làm bánh mì sourdough",
+  "public_info": {
+    "work": ["Thiết kế đồ họa tại Studio Lá Xanh"],
+    "education": ["Học viện Thiết kế Sông Hồng"],
+    "interests": ["chạy bộ", "làm bánh", "cây cảnh trong nhà"],
+    "current_city": "Hà Nội",
+    "hometown": null,
+    "pronouns": null,
+    "gender": null,
+    "birth_year": null,
+    "links": []
+  },
+  "public_posts": [
+    { "date": "2026-09-28", "text": "Hoàn thành 10km đầu tiên quanh Hồ Tây sáng nay, mệt nhưng vui!" },
+    { "date": "2026-09-20", "text": "Mẻ sourdough thứ 3, cuối cùng vỏ bánh cũng giòn 🥖" },
+    { "date": "2026-09-12", "text": "Cây trầu bà trên bàn làm việc vừa ra lá mới, mừng ghê." }
+  ],
+  "images": [
+    {
+      "kind": "avatar",
+      "path": null,
+      "url": null,
+      "alt_text": "Ảnh đại diện có vẻ cho thấy một người mặc đồ chạy bộ, đeo số áo, đứng cạnh vạch đích."
+    }
+  ]
+}

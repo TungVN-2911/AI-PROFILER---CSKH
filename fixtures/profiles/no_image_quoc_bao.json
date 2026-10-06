@@ -1,0 +1,21 @@
+{
+  "facebook_url": "https://www.facebook.com/fixture.quoc.bao",
+  "synthetic": true,
+  "access": { "state": "PUBLIC", "note": "" },
+  "collected_at": "2026-10-06T09:25:00+07:00",
+  "collection_method": "fixture",
+  "display_name": "Trịnh Quốc Bảo",
+  "bio": "Thích đạp xe đường dài và chơi cờ vua cuối tuần",
+  "public_info": {
+    "work": ["Kỹ sư phần mềm tại Công ty Mây Trắng"],
+    "education": [],
+    "interests": ["đạp xe", "cờ vua", "nhiếp ảnh phong cảnh"],
+    "current_city": "Thành phố Hồ Chí Minh",
+    "hometown": "Quy Nhơn"
+  },
+  "public_posts": [
+    { "date": "2026-09-27", "text": "Chuyến đạp xe 60km ra biển Cần Giờ, gió ngược nhưng cảnh đẹp xứng đáng." },
+    { "date": "2026-09-15", "text": "Ván cờ hôm nay thua ở nước thứ 40, phải học lại khai cuộc thôi." }
+  ],
+  "images": []
+}

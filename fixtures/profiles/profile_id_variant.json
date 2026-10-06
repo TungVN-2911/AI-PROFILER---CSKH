@@ -1,0 +1,19 @@
+{
+  "facebook_url": "https://www.facebook.com/profile.php?id=100000000000042",
+  "synthetic": true,
+  "access": { "state": "PUBLIC", "note": "" },
+  "collected_at": "2026-10-06T09:35:00+07:00",
+  "collection_method": "fixture",
+  "display_name": "Đặng Minh Tú",
+  "bio": "Nấu ăn là cách mình thư giãn",
+  "public_info": {
+    "interests": ["nấu ăn", "trồng rau ban công"],
+    "current_city": "Hải Phòng"
+  },
+  "public_posts": [
+    { "date": "2026-09-22", "text": "Luống rau muống trên ban công đã đủ cho một bữa canh." }
+  ],
+  "images": [
+    { "kind": "avatar", "path": null, "url": null, "alt_text": "Ảnh đại diện có vẻ cho thấy một chậu rau xanh trên ban công." }
+  ]
+}
