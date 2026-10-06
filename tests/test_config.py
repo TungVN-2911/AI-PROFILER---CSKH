@@ -1,3 +1,5 @@
+from pathlib import Path
+
 import pytest
 
 from app.config import PROJECT_ROOT, ConfigError, load_settings
@@ -101,7 +103,7 @@ def test_dotenv_file_is_read_and_env_wins(tmp_path, monkeypatch):
 def test_config_module_does_not_import_provider_sdk():
     import app.config as config
 
-    source = open(config.__file__, encoding="utf-8").read()
+    source = Path(config.__file__).read_text(encoding="utf-8")
     assert "import anthropic" not in source
 
 
