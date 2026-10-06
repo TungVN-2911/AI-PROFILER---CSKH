@@ -12,6 +12,9 @@
 - Phase 2 — Change Request CR-002 (Dr.Bee brand & product domain): **DONE** (TASK-024, 2026-10-06)
 - Phase 2 — Change Request CR-003 (remaining gaps): **DONE** (TASK-025, TASK-026, TASK-027 + BUG-003, 2026-10-06)
 - Phase 2 — Change Request CR-004 (Gemini provider): **DONE** (TASK-028 + BUG-002, 2026-10-06); verified live with the user's GEMINI_API_KEY
+- Phase 3 — Submission readiness (re-review of the brief, 2026-10-06): TASK-030…TASK-033. No requirement change: the
+  tasks close gaps against FR-016/FR-020, FR-019, NFR-003 and the brief's architecture criterion. Production features
+  (Messenger sending, multi-turn, scheduler, hand-over) stay out of scope and are documented as a roadmap only.
 
 ## Status Summary
 
@@ -49,8 +52,12 @@
 | BUG-002 | Gemini default model overloaded (503/504); SDK AFC warning | DONE | (related TASK-028) |
 | BUG-003 | Guardrail false positives found in live Gemini drafts | DONE | (related TASK-011, TASK-026) |
 | TASK-029 | Clean code (redundant comments) + Vietnamese README | DONE | — |
+| TASK-030 | README: Facebook data-access strategy + roadmap | DONE | — |
+| TASK-031 | Clean-clone install and run check | DONE | 030 |
+| TASK-032 | Consented runs on ≥ 3 real Facebook profiles | BLOCKED | user: consented profile data |
+| TASK-033 | Tune prompt / guardrails from real-run outputs | TODO | 032 |
 
-Counts: TODO 0 · IN_PROGRESS 0 · BLOCKED 0 · DONE 32 · SKIPPED 0
+Counts: TODO 1 · IN_PROGRESS 0 · BLOCKED 1 · DONE 34 · SKIPPED 0
 
 ---
 
@@ -2010,3 +2017,155 @@ Notes:
 - The only remaining "brief §4" text is a data string (`purpose` of the no-image case) in scripts/run_test_profiles.py,
   which is output, not a comment.
 - requirements.md / architecture.md / plan.md / task.md stay in English (process documents).
+
+---
+
+## TASK-030 — README: Facebook data-access strategy + roadmap
+
+Status: DONE
+Priority: HIGH
+Dependencies: None
+Requirements: brief §5.2 ("cách bạn xử lý bài toán tiếp cận dữ liệu Facebook mà không bị chặn"); C-001, C-002
+
+Goal:
+Show the reviewers the data-access reasoning (options considered, why the chosen one cannot be blocked) and the path
+to replacing the CSKH team, without building production features.
+
+Scope:
+- One Vietnamese README section: options considered (log-in scraping, Graph API, unauthenticated request, provided
+  data, Messenger Platform) with outcome and decision; short roadmap (Messenger send/receive, multi-turn, hand-over to
+  a pharmacist, daily 20:00 message incl. Meta's 24-hour window).
+- Pointers from the intro box and the limitations section. No code change.
+
+Acceptance Criteria:
+- [x] Section present and linked; claims about Meta APIs checked against Meta's documentation.
+- [x] No code change; full test suite passes.
+
+Expected Files:
+- README.md
+
+Test:
+- `python -m pytest -q`
+
+Completed:
+- README §10 "Tiếp cận dữ liệu Facebook và lộ trình": table of 5 options (log-in scraping, Graph API, `--live`,
+  provided data, Messenger Platform) with outcome and decision; note that `app/sources/` makes a Messenger source a
+  new adapter only; roadmap of 4 steps (Messenger send/receive, multi-turn, hand-over to a pharmacist, daily 20:00
+  message with Meta's 24-hour window and Marketing Messages opt-in).
+- Limitations renumbered to §11; pointers added from the intro box (anchor link) and from two limitation bullets.
+- Claims checked on 2026-10-06 against: Meta Automated Data Collection Terms and Terms of Service (no automated
+  collection without Meta's written permission, logged-in or not); Graph API User reference (User token of the person
+  who authorised the app); Messenger User Profile API (name, first/last name, profile_pic, locale, timezone, gender;
+  needs App Review; no bio or posts); Messenger policy (24-hour standard window, message tags non-promotional,
+  Marketing Messages opt-in); Vietnam Law on Personal Data Protection No. 91/2025/QH15, in force 2026-01-01.
+
+Files Changed:
+- README.md
+
+Tests:
+- `python -m pytest -q` → 475 passed (documentation-only change).
+
+Result:
+PASS
+
+---
+
+## TASK-031 — Clean-clone install and run check
+
+Status: DONE
+Priority: HIGH
+Dependencies: TASK-030
+Requirements: NFR-003 ("README quick start verified on a clean venv"), brief §5.2 runability
+
+Goal:
+Prove that a reviewer following the README gets a working run.
+
+Scope:
+- Fresh clone of `origin/main` into a short path, new venv, `pip install -r requirements.txt`, the one README
+  command, the test suite. Fix only what blocks the README steps.
+
+Acceptance Criteria:
+- [x] Install succeeds; `python main.py --url "https://www.facebook.com/fixture.minh.anh"` prints valid JSON with
+  `SUCCESS`; `python -m pytest -q` passes in the clone.
+
+Expected Files:
+- None unless a README step is wrong.
+
+Test:
+- The steps above.
+
+Completed:
+- 2026-10-06, Windows 11 with long-path support disabled (LongPathsEnabled = 0), no `.env`: `git clone` of
+  github.com/TungVN-2911/AI-PROFILER---CSKH at `b7952d2` into `%TEMP%\tes3808`, `python -m venv .venv`,
+  `pip install -r requirements.txt`.
+- Python 3.12.10: install 45 s; README command → exit 0 in 0.8 s, stdout identical to `output.json`, `SUCCESS`,
+  10 messages, `ZERO_SALES_CONFIRMED`, `trigger_time` 20:00, empty stderr; `pytest -q` → 475 passed.
+- Python 3.14.3 (second venv): install OK; README command → `SUCCESS`; `pytest -q` → 475 passed, 1 third-party
+  DeprecationWarning from google-genai.
+- No README step needed a fix. With `-W default`, the run showed a ResourceWarning from
+  `tests/test_config.py` (file opened without closing); fixed with `Path.read_text`.
+- Temporary clone removed.
+
+Files Changed:
+- tests/test_config.py (one line + import)
+
+Tests:
+- Clean clone, both interpreters: 475 passed. Working copy: `python -m pytest -q` → 475 passed;
+  `tests/test_config.py` with `-W error::ResourceWarning` → 19 passed.
+
+Result:
+PASS
+
+---
+
+## TASK-032 — Consented runs on ≥ 3 real Facebook profiles
+
+Status: BLOCKED
+Priority: HIGH
+Dependencies: user — consented profile data for 3 people
+Requirements: brief §5.1.2, FR-016, FR-020; C-009 (real data only with the owners' consent)
+
+Goal:
+Record successful runs on at least 3 different real Facebook profiles, as the brief asks.
+
+Scope:
+- `scripts/new_profile.py` for each consented URL; publicly visible data filled in, including the saved profile
+  picture (`path`) so the vision step runs on a real image; `scripts/run_test_profiles.py --profiles-dir runs/real`.
+- Whether the real results are published in the repository is the owners' and the user's decision.
+
+Acceptance Criteria:
+- [ ] ≥ 3 real profiles run; results recorded in `runs/test_results_real.json`, each SUCCESS or a correctly labelled
+  PARTIAL_OR_PRIVATE.
+
+Expected Files:
+- runs/real/*.json, runs/test_results_real.json (git-ignored)
+
+Test:
+- `python scripts/run_test_profiles.py --profiles-dir runs/real`
+
+Notes:
+- Blocked until the user supplies 3 URLs with the owners' consent.
+
+---
+
+## TASK-033 — Tune prompt / guardrails from real-run outputs
+
+Status: TODO
+Priority: MEDIUM
+Dependencies: TASK-032
+Requirements: FR-019, C-005, NFR-002
+
+Goal:
+Fix the weak spots that real profiles reveal (tone, presumptions, sales wording), and nothing else.
+
+Scope:
+- Review TASK-032 outputs; small prompt or lexicon edits with a regression test for each.
+
+Acceptance Criteria:
+- [ ] Every change is tied to an observed output; full test suite passes.
+
+Expected Files:
+- app/generation/prompts.py, app/lexicons.py, app/guardrails.py, tests/
+
+Test:
+- `python -m pytest -q`

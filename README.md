@@ -20,7 +20,8 @@ python main.py --url "https://www.facebook.com/fixture.minh.anh"
 > Agent không bao giờ đăng nhập, không vượt CAPTCHA, cài đặt quyền riêng tư hay cơ chế chống bot. Một lần thử thật
 > với facebook.com trả về trang đăng nhập (xem `test_results.json`, trường hợp `live_facebook_attempt`). Vì vậy dữ
 > liệu trang cá nhân được cung cấp dưới dạng JSON (`--profile-file` hoặc thư mục dữ liệu cục bộ). Repo chỉ chứa các
-> persona **giả lập** để thử nghiệm, không có dữ liệu của người thật.
+> persona **giả lập** để thử nghiệm, không có dữ liệu của người thật. Các cách đã cân nhắc và lý do chọn: xem
+> [mục 10](#10-tiếp-cận-dữ-liệu-facebook-và-lộ-trình).
 
 ---
 
@@ -322,13 +323,41 @@ scripts/new_profile.py        tạo file mẫu cho trang cá nhân thật (có �
 scripts/run_test_profiles.py  lượt chạy kiểm thử → test_results.json
 ```
 
-## 10. Giới hạn đã biết
+## 10. Tiếp cận dữ liệu Facebook và lộ trình
+
+Đề bài hỏi cách tiếp cận dữ liệu Facebook mà không bị chặn. Cách của dự án là **không đi vào chỗ bị chặn**: agent chỉ
+dùng dữ liệu được phép đọc, nên không có gì để Facebook chặn và không có tài khoản hay Fanpage nào bị khóa.
+
+| Cách | Kết quả | Quyết định |
+|---|---|---|
+| Đăng nhập bằng một tài khoản, dùng trình duyệt tự động hoặc proxy để đọc trang cá nhân | Đọc được nhiều nhất. Nhưng điều khoản của Meta cấm thu thập dữ liệu bằng phương tiện tự động khi chưa được Meta cho phép bằng văn bản, kể cả khi không đăng nhập; tài khoản và Fanpage có thể bị khóa. Luật Bảo vệ dữ liệu cá nhân (số 91/2025/QH15, hiệu lực từ 01/01/2026) yêu cầu có sự đồng ý của chủ dữ liệu trước khi thu thập | Không dùng |
+| Graph API | Chỉ đọc được thông tin của người đã đăng nhập vào app và cấp quyền, không đọc được trang cá nhân của người khác | Không dùng được |
+| Một request không đăng nhập (`--live`) | Facebook thường trả về trang đăng nhập; nếu có dữ liệu thì chỉ gồm tên, một đoạn mô tả ngắn và ảnh | Giữ làm tùy chọn, mặc định tắt, chỉ gửi đúng một request |
+| Dữ liệu được cung cấp (`--profile-file`): khách tự chia sẻ, hoặc nhân viên chép phần công khai khi có sự đồng ý | Hợp lệ, và đề bài cho phép đầu vào là "dữ liệu profile trích xuất được" | **Cách chính** |
+| Messenger Platform: khách nhắn vào Fanpage, Page lấy tên và ảnh đại diện qua API chính thức | Hợp lệ, không bị chặn, mở rộng được. Cần Meta duyệt quyền; đầu vào là ID người nhắn tin thay vì URL; API không cung cấp tiểu sử hay bài đăng | Hướng đi khi vận hành thật |
+
+Lớp nguồn dữ liệu được tách riêng (`app/sources/`), nên thêm nguồn Messenger chỉ là thêm một adapter. Danh sách thông
+tin, mô tả ảnh, sinh tin nhắn và guardrail giữ nguyên.
+
+### Lộ trình để thay thế hoàn toàn đội CSKH
+
+Bài test dừng ở bước tạo kịch bản; nhân viên xem lại rồi gửi. Để agent tự vận hành, cần thêm:
+
+1. **Nhận và gửi tin qua Messenger** (webhook và Send API của Fanpage). Mọi tin vẫn đi qua guardrail hiện có trước khi gửi.
+2. **Hội thoại nhiều lượt.** Lưu lịch sử theo từng khách; điều khách tự kể được thêm vào danh sách thông tin như FACT
+   có nguồn.
+3. **Chuyển cho Dược sĩ** khi khách tự hỏi về tóc hoặc sản phẩm, kèm tóm tắt hồ sơ và lịch sử trò chuyện.
+4. **Tin nhắn 20:00 hằng ngày** bằng bộ lập lịch theo giờ Việt Nam, mỗi ngày một chủ đề khác. Ràng buộc của Meta: Page
+   chỉ được chủ động nhắn trong vòng 24 giờ kể từ tin cuối của khách. Ngoài khung đó, khách phải đồng ý nhận tin định kỳ
+   (Marketing Messages), nếu không thì không được gửi.
+
+## 11. Giới hạn đã biết
 
 - **TECHNICAL LIMITATION: truy cập Facebook.** Khi chưa đăng nhập, Facebook trả về trang đăng nhập; một lần thử thật
   trong `test_results.json` cho kết quả `LOGIN_REQUIRED`. Agent không đăng nhập, không dùng cookie, không giải CAPTCHA,
   không đổi IP, nên dữ liệu trang cá nhân thật phải được cung cấp qua `--profile-file` (ví dụ khách tự xuất dữ liệu với
   sự đồng ý, hoặc nhân viên chép tay phần công khai). `--live` chỉ đọc được thẻ meta `og:*` công khai; các thẻ này
-  thường không có, và nếu có thì cũng chỉ gồm tên, một đoạn mô tả ngắn và URL ảnh.
+  thường không có, và nếu có thì cũng chỉ gồm tên, một đoạn mô tả ngắn và URL ảnh. Lý do chi tiết ở mục 10.
 - **Dữ liệu test được commit là giả lập.** Các trường hợp trong `test_results.json` dùng persona hư cấu trong
   `fixtures/profiles/`, không có dữ liệu người thật nào được commit. Để chạy trên 3 trang cá nhân thật như đề bài, dùng
   quy trình có sự đồng ý ở mục 5. Kết quả nằm trong `runs/` trừ khi chủ trang đồng ý công bố.
@@ -348,7 +377,7 @@ scripts/run_test_profiles.py  lượt chạy kiểm thử → test_results.json
   "bên giai điệu ukulele quen thuộc", ngầm giả định tối nay khách sẽ chơi đàn. Bộ luật bắt được các mẫu rõ ràng
   ("chắc hẳn", "tối nay bạn…", "mệt mỏi") nhưng không bắt được mọi sắc thái. Hãy đọc lại tin nhắn trước khi gửi.
 - **Chưa có lịch gửi và chưa tự gửi tin.** `trigger_time: "20:00"` chỉ cho biết thời điểm nên gửi tin nhắn buổi tối.
-  Agent không tự gửi tin; nhân viên xem lại rồi gửi.
+  Agent không tự gửi tin; nhân viên xem lại rồi gửi. Lộ trình để tự gửi ở mục 10.
 - **Nhân khẩu học chỉ là ước lượng.** Dữ liệu tự khai báo được dùng trước. Nếu không có, mô hình đọc ảnh có thể ước
   lượng giới tính và khoảng tuổi từ ảnh đại diện, chỉ khi ảnh có đúng một người, độ tin cậy về giới tính từ 0.7 trở
   lên, khoảng tuổi rộng tối đa 15 năm với độ tin cậy từ 0.6 trở lên. Ước lượng được gắn nhãn `INFERENCE` và có thể sai;
