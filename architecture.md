@@ -270,6 +270,12 @@ One structured call generates all three to keep tone coherent; validated per sec
 
 In every case stdout contains exactly one valid JSON document and `output.json` is written.
 
+An explicitly supplied `--profile-file` is the acquisition source for that run and takes precedence
+over live fetching and the local profile store. In `live_meta` records only, independent clauses in
+the public `og:description` are ledgered as separate verbatim bio facts; profile-file bio text remains
+intact. A login wall or page without accessible public metadata is reported as-is and is not followed
+by an authenticated browser session.
+
 ---
 
 ## 7. Interfaces

@@ -69,6 +69,12 @@ def test_batch_run_over_a_profiles_dir_never_touches_committed_artifacts(tmp_pat
     assert "đồng ý" in report["data_note"]
     assert {p: p.stat().st_mtime_ns for p in COMMITTED} == before
 
+    first_run_dirs = set((tmp_path / "runs").iterdir())
+    run(RUN_PROFILES, "--profiles-dir", str(profiles), "--results", str(results_file), "--runs-dir", str(tmp_path / "runs"))
+    second_run_dirs = set((tmp_path / "runs").iterdir())
+    assert len(first_run_dirs) == 1
+    assert len(second_run_dirs) == 2 and first_run_dirs < second_run_dirs
+
 
 def test_missing_profiles_dir_is_an_error(tmp_path):
     code, _, err = run(RUN_PROFILES, "--profiles-dir", str(tmp_path / "nope"), "--results", str(tmp_path / "r.json"))

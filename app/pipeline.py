@@ -36,7 +36,11 @@ from app.schema import (
     SuccessOutput,
     ValidationSummary,
 )
-from app.sources.base import SYNTHETIC_NOTE, ProfileSource, SourceError, acquire_from_chain
+from app.sources.base import (
+    SYNTHETIC_NOTE,
+    SourceError,
+    acquire_from_chain,
+)
 from app.sources.live_meta import SCOPE_NOTE, LivePublicMetaSource
 from app.sources.provided import FixtureStoreSource, ProvidedFileSource
 from app.vision import extract_visual_context
@@ -68,8 +72,12 @@ class PipelineResult:
 
 def _partial(url: str, note: str, exit_code: int, **evidence: object) -> PipelineResult:
     return PipelineResult(
-        output=PartialOutput(status="PARTIAL_OR_PRIVATE", facebook_url=url, error_note=note),
-        evidence=EvidenceReport(facebook_url=url, output_status="PARTIAL_OR_PRIVATE", **evidence),
+        output=PartialOutput(
+            status="PARTIAL_OR_PRIVATE", facebook_url=url, error_note=note
+        ),
+        evidence=EvidenceReport(
+            facebook_url=url, output_status="PARTIAL_OR_PRIVATE", **evidence
+        ),
         exit_code=exit_code,
     )
 
@@ -86,7 +94,9 @@ def run_pipeline(
     except Exception as exc:  # INTERNAL_ERROR catch-all: never crash, never invent
         log.exception("unexpected pipeline error")
         note = f"INTERNAL_ERROR: Lỗi ngoài dự kiến ({type(exc).__name__}); không tạo kết quả và không bịa thông tin nào."
-        return _partial(raw_url or "", note, EXIT_INTERNAL, technical_limitations=[note])
+        return _partial(
+            raw_url or "", note, EXIT_INTERNAL, technical_limitations=[note]
+        )
 
 
 def _run(
@@ -100,8 +110,13 @@ def _run(
     try:
         url = validate_profile_url(raw_url)
     except InputError as exc:
-        return _partial(exc.raw, exc.error_note, EXIT_INPUT, access_state=AccessState.INVALID_INPUT,
-                        technical_limitations=[exc.error_note])
+        return _partial(
+            exc.raw,
+            exc.error_note,
+            EXIT_INPUT,
+            access_state=AccessState.INVALID_INPUT,
+            technical_limitations=[exc.error_note],
+        )
     log.info("canonical URL: %s", url.url)
 
     # 2. LLM availability (fail fast in --mode llm without credentials)
@@ -113,20 +128,41 @@ def _run(
             note = f"TECHNICAL LIMITATION: {exc.detail or exc.kind}."
             return _partial(url.url, note, EXIT_INPUT, technical_limitations=[note])
 
-    # 3. Data acquisition
+        # 3. Data acquisition
     store = FixtureStoreSource(settings.profile_store_dir)
-    sources: list[ProfileSource] = []
     if options.profile_file is not None:
-        sources.append(ProvidedFileSource(options.profile_file))
+        try:
+            acq = ProvidedFileSource(options.profile_file).acquire(url)
+        except SourceError as exc:
+            note = f"INVALID_INPUT: {exc}"
+            return _partial(
+                url.url, note, EXIT_INPUT,
+                access_state=AccessState.INVALID_INPUT,
+                technical_limitations=[note],
+            )
+    else:
+        acq = None
+
     live = settings.live_fetch_enabled if options.live is None else options.live
-    sources += [store, LivePublicMetaSource(enabled=live, timeout_seconds=15.0, transport=http_transport)]
-    try:
-        acq = acquire_from_chain(sources, url)
-    except SourceError as exc:
-        note = f"INVALID_INPUT: {exc}"
-        return _partial(url.url, note, EXIT_INPUT, access_state=AccessState.INVALID_INPUT, technical_limitations=[note])
+
+    if acq is None and live:
+        try:
+            acq = LivePublicMetaSource(
+                enabled=True, timeout_seconds=15.0, transport=http_transport
+            ).acquire(url)
+        except SourceError:
+            acq = None
+
+    if acq is None:
+        try:
+            acq = acquire_from_chain([store], url)
+        except SourceError as exc:
+            note = f"INVALID_INPUT: {exc}"
+            return _partial(url.url, note, EXIT_INPUT, access_state=AccessState.INVALID_INPUT, technical_limitations=[note])
+
     limitations = [*acq.limitations, *(f"profile store: {e}" for e in store.load_errors)]
     log.info("acquired via %s: %s", acq.source_name, acq.access_state.value)
+
 
     # 4. Normalization + visual context (readable profiles only)
     ledger = build_ledger(acq.raw)
@@ -134,14 +170,20 @@ def _run(
     visual_available = False
     if acq.access_state in READABLE_STATES:
         vision = extract_visual_context(acq.raw, ledger, llm, transport=http_transport)
-        ledger, visual_context, visual_available = vision.ledger, vision.visual_context, vision.available
+        ledger, visual_context, visual_available = (
+            vision.ledger,
+            vision.visual_context,
+            vision.available,
+        )
         limitations += vision.notes
 
     common = dict(
         access_state=acq.access_state,
         sources_used=[acq.source_name],
         synthetic_data=acq.synthetic,
-        collected_at=acq.raw.collected_at.isoformat() if acq.raw and acq.raw.collected_at else None,
+        collected_at=acq.raw.collected_at.isoformat()
+        if acq.raw and acq.raw.collected_at
+        else None,
         fact_ledger=ledger.facts,
         unknown_fields=ledger.unknown_fields,
     )
@@ -149,9 +191,13 @@ def _run(
     # 5. Sufficiency gate
     gate = evaluate_sufficiency(acq.access_state, ledger, settings)
     if not gate.ok:
-        details = [n for n in acq.limitations if n not in _CONTEXT_NOTES and n != gate.note]
+        details = [
+            n for n in acq.limitations if n not in _CONTEXT_NOTES and n != gate.note
+        ]
         note = " | ".join([gate.note, *details])
-        return _partial(url.url, note, EXIT_OK, technical_limitations=limitations, **common)
+        return _partial(
+            url.url, note, EXIT_OK, technical_limitations=limitations, **common
+        )
 
     # 5b. No collectable / readable public image → PARTIAL_OR_PRIVATE, never an invented scene.
     if not visual_available:
@@ -160,7 +206,9 @@ def _run(
             f"NO_IMAGE: Không thu thập hoặc không đọc được hình ảnh công khai nào ({reason}); "
             "trang cá nhân chỉ đọc được một phần nên không tạo mô tả hình ảnh và tin nhắn."
         )
-        return _partial(url.url, note, EXIT_OK, technical_limitations=[*limitations, note], **common)
+        return _partial(
+            url.url, note, EXIT_OK, technical_limitations=[*limitations, note], **common
+        )
 
     # 6. Intelligence + generation
     intel = build_intelligence(ledger, options.reference_year)
@@ -170,10 +218,18 @@ def _run(
             "INSUFFICIENT_DATA: Không thể viết tin nhắn có căn cứ mà không bịa nội dung"
             f" ({gen.error})."
         )
-        return _partial(url.url, note, EXIT_OK, technical_limitations=limitations,
-                        generation_mode="none", model_id=gen.model_id,
-                        validation=ValidationSummary(passed=False, attempts=gen.attempts, violations=gen.history),
-                        **common)
+        return _partial(
+            url.url,
+            note,
+            EXIT_OK,
+            technical_limitations=limitations,
+            generation_mode="none",
+            model_id=gen.model_id,
+            validation=ValidationSummary(
+                passed=False, attempts=gen.attempts, violations=gen.history
+            ),
+            **common,
+        )
 
     # 7. Final guardrail check — the only place ZERO_SALES_CONFIRMED can come from.
     violations = validate_draft(gen.draft, ledger)
@@ -183,10 +239,21 @@ def _run(
     return _success(url.url, ledger, intel, gen, visual_context, limitations, common)
 
 
-def _success(url, ledger: FactLedger, intel, gen: GenerationResult, visual_context, limitations, common) -> PipelineResult:
+def _success(
+    url,
+    ledger: FactLedger,
+    intel,
+    gen: GenerationResult,
+    visual_context,
+    limitations,
+    common,
+) -> PipelineResult:
     draft = gen.draft
     if gen.mode == "llm" and draft.apparent_lifestyle is not None:
-        lifestyle, lifestyle_ids = draft.apparent_lifestyle.text, draft.apparent_lifestyle.fact_ids
+        lifestyle, lifestyle_ids = (
+            draft.apparent_lifestyle.text,
+            draft.apparent_lifestyle.fact_ids,
+        )
     else:
         lifestyle, lifestyle_ids = intel.apparent_lifestyle, intel.lifestyle_fact_ids
 
@@ -207,7 +274,9 @@ def _success(url, ledger: FactLedger, intel, gen: GenerationResult, visual_conte
             dialogue_sequence_10=[m.text for m in draft.messages],
             sales_mention_check=ZERO_SALES_CONFIRMED,
         ),
-        evening_cadence_20pm=EveningCadence(trigger_time=TRIGGER_TIME, evening_hook_message=draft.evening_hook.text),
+        evening_cadence_20pm=EveningCadence(
+            trigger_time=TRIGGER_TIME, evening_hook_message=draft.evening_hook.text
+        ),
     )
     evidence = EvidenceReport(
         facebook_url=url,
@@ -220,7 +289,10 @@ def _success(url, ledger: FactLedger, intel, gen: GenerationResult, visual_conte
             gender=intel.gender_fact_ids,
             estimated_age_range=intel.age_fact_ids,
             apparent_lifestyle=lifestyle_ids,
-            messages=[MessageGrounding(index=i, kind=m.kind, fact_ids=m.fact_ids) for i, m in enumerate(draft.messages)],
+            messages=[
+                MessageGrounding(index=i, kind=m.kind, fact_ids=m.fact_ids)
+                for i, m in enumerate(draft.messages)
+            ],
             evening_hook=draft.evening_hook.fact_ids,
         ),
         validation=ValidationSummary(

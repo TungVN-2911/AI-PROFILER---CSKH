@@ -99,7 +99,7 @@ python main.py --url URL [--profile-file FILE] [--output output.json] [--evidenc
 | Tùy chọn | Ý nghĩa |
 |---|---|
 | `--url` | URL trang Facebook cá nhân. Chấp nhận `facebook.com/<username>`, các host `m.` / `mbasic.` / `web.`, `profile.php?id=<số>`, `/people/<tên>/<id>`. Tham số theo dõi (tracking) được loại bỏ. |
-| `--profile-file` | File JSON chứa dữ liệu trang cá nhân lấy được hợp lệ (định dạng: `fixtures/README.md`). `facebook_url` trong file phải khớp với `--url`. |
+| `--profile-file` | File JSON chứa dữ liệu trang cá nhân lấy được hợp lệ (định dạng: `fixtures/README.md`). `facebook_url` trong file phải khớp với `--url`; khi truyền tùy chọn này, dữ liệu file được ưu tiên và không gọi nguồn live. |
 | `--mode` | `auto` (mặc định): dùng LLM nếu có key, không thì dùng template. `llm`: bắt buộc có key. `deterministic`: chỉ dùng template, không gọi LLM. |
 | `--live` | Tùy chọn bật thêm. Gửi **đúng một** request không đăng nhập, User-Agent trung thực, chỉ đọc các thẻ meta `og:*` công khai. Không đăng nhập, không thử lại. Gặp trang đăng nhập thì báo là giới hạn kỹ thuật. |
 | `--messages` | Số tin nhắn làm quen muốn sinh, 5–10. |
@@ -157,9 +157,16 @@ những gì đang hiển thị công khai.
    python scripts/run_test_profiles.py --profiles-dir runs/real
    ```
 
-   Kết quả ghi vào `runs/test_results_real.json`, output từng trang nằm trong `runs/real_run/<tên>/`. Ở chế độ này,
-   các file `test_results.json`, `output.json`, `evidence.json` đang được commit không bao giờ bị động tới. Chỉ công
-   bố kết quả thật khi chủ trang đồng ý. Ở hạng miễn phí của Gemini, Google có thể dùng dữ liệu để cải thiện sản phẩm.
+   Mỗi lượt chạy được lưu riêng trong `runs/real_run/<thời-điểm>/`, gồm báo cáo và output/evidence riêng cho từng
+   profile; chạy lại không ghi đè kết quả cũ. Có thể truyền `--results FILE` nếu muốn tự chọn file báo cáo (file được
+   chỉ định tường minh sẽ được cập nhật ở lần chạy sau). Ở chế độ này, các file `test_results.json`, `output.json`,
+   `evidence.json` đang được commit không bao giờ bị động tới. Chỉ công bố kết quả thật khi chủ trang đồng ý. Ở hạng
+   miễn phí của Gemini, Google có thể dùng dữ liệu để cải thiện sản phẩm.
+
+Khi chạy trực tiếp `main.py --profile-file ...` mà không truyền `--output`/`--evidence`, file `output.json` và
+`evidence.json` ở thư mục hiện tại vẫn được cập nhật để giữ hành vi CLI; bản lưu riêng theo profile và thời điểm chạy
+cũng được tạo trong `runs/real_runs/<profile-id>/<thời-điểm>/`. Dữ liệu thật lưu trong `runs/` (đã git-ignore); chỉ
+giữ lại nếu phù hợp với sự đồng ý và chính sách lưu trữ của bạn.
 
 ## 6. Ví dụ đầu vào
 

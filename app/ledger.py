@@ -6,6 +6,7 @@ Nothing is inferred here; missing fields are listed in `unknown_fields`.
 
 from __future__ import annotations
 
+import re
 from dataclasses import dataclass
 
 from app.config import Settings
@@ -28,6 +29,8 @@ TRACKED_FIELDS = (
     "public_posts",
     "images",
 )
+
+_BIO_FACT_SEPARATOR = re.compile(r"\s*(?:[·•]|\r?\n+)\s*|\.\s+(?=[A-ZÀ-Ỵ0-9])")
 
 
 class _LedgerBuilder:
@@ -73,7 +76,17 @@ def build_ledger(raw: RawProfile | None) -> FactLedger:
     info = raw.public_info
 
     b.add_value("name", raw.display_name, "display_name")
-    b.add_value("bio", raw.bio, "bio")
+    if raw.bio is None:
+        b.add_value("bio", None, "bio")
+    elif raw.collection_method == "live_meta":
+        bio_facts = [part.strip() for part in _BIO_FACT_SEPARATOR.split(raw.bio) if part.strip()]
+        if len(bio_facts) == 1:
+            b.add("bio", bio_facts[0], "bio")
+        else:
+            for i, statement in enumerate(bio_facts):
+                b.add("bio", statement, f"bio[{i}]")
+    else:
+        b.add_value("bio", raw.bio, "bio")
     b.add_list("work", info.work, "public_info.work")
     b.add_list("education", info.education, "public_info.education")
     b.add_list("interest", info.interests, "public_info.interests")
