@@ -1,4 +1,4 @@
-"""Shared word lists for deterministic content checks (C-007).
+"""Shared word lists for deterministic content checks.
 
 Patterns use word boundaries and are matched case-insensitively on Unicode text (vi + en).
 """
@@ -9,7 +9,7 @@ import re
 
 # Attributes that must never be inferred from images or written about a person:
 # ethnicity, religion, health/body, sexual orientation, politics, family role/relationships,
-# and appearance-based gender/age guesses (Decision D-3).
+# and appearance-based gender/age guesses.
 SENSITIVE_TERMS: dict[str, tuple[str, ...]] = {
     "ethnicity": (
         "asian", "caucasian", "african", "hispanic", "latino", "latina", "ethnic", "ethnicity", "race",
@@ -55,7 +55,7 @@ def find_sensitive(text: str) -> list[tuple[str, str]]:
     hits: list[tuple[str, str]] = []
     for category, pattern in _SENSITIVE_PATTERNS.items():
         for m in pattern.finditer(text):
-            # BUG-003: "người yêu chạy bộ / thích / cái đẹp …" means "a person who loves …". It means "a lover" only
+            # "người yêu chạy bộ / thích / cái đẹp …" means "a person who loves …". It means "a lover" only
             # at the end of a phrase or before possessive / relationship words ("người yêu của bạn", "người yêu cũ").
             if m.group(0).casefold() == "người yêu" and not _LOVER_CONTEXT.match(text, m.end()):
                 continue
@@ -69,7 +69,7 @@ _LOVER_CONTEXT = re.compile(
 )
 
 
-# --- Zero-sales (C-005) ---------------------------------------------------------------------
+# --- Zero-sales ---------------------------------------------------------------------------------
 # Commercial vocabulary. A term is tolerated only when it appears verbatim in a cited fact
 # (e.g. a bio saying "thiết kế sản phẩm"); prices, URLs, phones, e-mails and hashtags never are.
 SALES_TERMS: tuple[str, ...] = (
@@ -89,7 +89,7 @@ SALES_TERMS: tuple[str, ...] = (
 )
 
 PRICE_PATTERN = re.compile(
-    # BUG-003: "đ" / "củ" are units only when no letter follows ("thứ 3 đã", "3 củ khoai" are not prices).
+    # "đ" / "củ" are units only when no letter follows ("thứ 3 đã", "3 củ khoai" are not prices).
     r"(?:\d[\d.,]*\s*(?:k(?![a-zà-ỹ])|đ(?![a-zà-ỹ])|₫|vnd|vnđ|nghìn|ngàn|triệu|tr(?![a-zà-ỹ])|củ(?!\s*[a-zà-ỹ])|usd|\$|%))"
     r"|(?:[$€£]\s*\d)",
     re.IGNORECASE,
@@ -101,7 +101,7 @@ PHONE_PATTERN = re.compile(r"(?<!\d)(?:\+?84|0)(?:[\s.\-]?\d){8,10}(?!\d)")
 EMAIL_PATTERN = re.compile(r"[\w.+-]+@[\w-]+\.[\w.]+")
 HASHTAG_PATTERN = re.compile(r"(?<![\w&])#\w+")
 
-# --- Presumption of the customer's current situation (FR-012) ------------------------------
+# --- Presumption of the customer's current situation ---------------------------------------------
 _PRONOUN = r"(?:bạn|anh|chị|em|cậu|bác|cô|chú)"
 PRESUMPTION_PATTERNS: tuple[re.Pattern[str], ...] = tuple(
     re.compile(p, re.IGNORECASE)
@@ -135,7 +135,7 @@ def find_presumptions(text: str) -> list[str]:
     return [m.group(0) for p in PRESUMPTION_PATTERNS for m in p.finditer(text)]
 
 
-# --- Brand & product domain (CR-002, original brief §2) -------------------------------------
+# --- Brand & product domain ---------------------------------------------------------------------
 # The rapport sequence must never name the brand or steer toward what it sells. Edit these lists to reuse the
 # agent for another brand.
 BRAND_PATTERN = re.compile(

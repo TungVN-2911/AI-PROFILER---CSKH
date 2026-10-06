@@ -1,4 +1,4 @@
-"""Tooling for consented real-profile runs (FR-020, TASK-027). Subprocesses inherit PROFILER_NO_DOTENV (conftest)."""
+"""Tooling for consented real-profile runs. Subprocesses inherit PROFILER_NO_DOTENV (conftest)."""
 
 import json
 import os

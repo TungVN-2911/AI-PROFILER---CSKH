@@ -86,7 +86,7 @@ def test_missing_name_is_none():
     assert intel_for(profile).customer_name is None
 
 
-# --- Perceived estimates (CR-001, TASK-022) -------------------------------------------------
+# --- Perceived estimates ------------------------------------------------------------------------
 
 
 def with_estimates(profile, gender=("female", 0.85), age=("25-35", 0.7)):
@@ -129,7 +129,7 @@ def test_implausible_birth_year_falls_back_to_perceived_age():
     assert intel.estimated_age_range.startswith("INFERENCE: 25–35")
 
 
-# --- Forms of address (CR-001, TASK-023) ----------------------------------------------------
+# --- Forms of address ---------------------------------------------------------------------------
 
 from app.intel import NEUTRAL_ADDRESSING, derive_addressing  # noqa: E402
 

@@ -1,10 +1,10 @@
-"""Gemini adapter (CR-004). The ONLY module in the application that imports the `google-genai` SDK.
+"""Gemini adapter. The ONLY module in the application that imports the `google-genai` SDK.
 
 Structured output uses `response_mime_type="application/json"` with `response_json_schema` derived from the
 Pydantic model (local `$ref`s inlined). The finish reason and prompt-block feedback are checked before the text is
 validated, so safety blocks and truncation are reported as such rather than as bad JSON.
 
-BUG-002: models are tried in order (`GEMINI_MODEL`, then `GEMINI_FALLBACK_MODELS`). A model that is overloaded,
+Models are tried in order (`GEMINI_MODEL`, then `GEMINI_FALLBACK_MODELS`). A model that is overloaded,
 out of quota, missing or timing out is skipped for the rest of the run; `model_id` names the model that answered.
 """
 

@@ -1,4 +1,4 @@
-"""Profile source protocol and the acquisition chain (architecture.md §7.3, plan.md §5.1)."""
+"""Profile source protocol and the acquisition chain."""
 
 from __future__ import annotations
 

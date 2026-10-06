@@ -1,4 +1,4 @@
-"""Validation and canonicalization of Facebook profile URLs (FR-002).
+"""Validation and canonicalization of Facebook profile URLs.
 
 Canonical forms:
     https://www.facebook.com/<username>            (username lowercased)

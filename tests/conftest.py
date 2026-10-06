@@ -1,7 +1,7 @@
-"""Test-wide guards: the suite must run offline (NFR-006) and never use a real API key.
+"""Test-wide guards: the suite must run offline and never use a real API key.
 
 Any real socket connection fails the test. A developer's `.env` (with a real GEMINI_API_KEY / ANTHROPIC_API_KEY) is
-ignored via PROFILER_NO_DOTENV, which subprocesses spawned by tests inherit (BUG-002)."""
+ignored via PROFILER_NO_DOTENV, which subprocesses spawned by tests inherit."""
 
 import socket
 

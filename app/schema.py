@@ -24,7 +24,7 @@ class _Strict(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
 
-# --- Strict output schema (brief §2) --------------------------------------------------------
+# --- Strict output schema -----------------------------------------------------------------------
 
 
 class EstimatedDemographics(_Strict):
@@ -78,7 +78,7 @@ def to_json_dict(output: SuccessOutput | PartialOutput) -> dict[str, Any]:
     return output.model_dump(mode="json")
 
 
-# --- Evidence report (evidence.json) --------------------------------------------------------
+# --- Evidence report (evidence.json) ------------------------------------------------------------
 
 
 class MessageGrounding(_Strict):

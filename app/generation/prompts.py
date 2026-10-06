@@ -1,4 +1,4 @@
-"""Prompts for the LLM engagement generator (architecture.md §5.2).
+"""Prompts for the LLM engagement generator.
 
 The system prompt is static (cache-friendly); everything profile-specific goes in the user prompt.
 Only FACT entries usable for grounding are shown to the model, plus the name for greetings.
@@ -65,7 +65,7 @@ def build_user_prompt(
         lines.append(f"{name.id} [name — may be used to greet; not a grounding fact]: {name.statement}")
     for fact in ledger.usable_facts():
         if has_blocked_topic(fact.statement):
-            continue  # CR-002: brand / product-domain facts can never be used, so they are not offered
+            continue  # Brand / product-domain facts can never be used, so they are not offered
         lines.append(f"{fact.id} [{fact.category}] (source {fact.source}): {fact.statement}")
     for fact in ledger.facts:
         if fact.category == "visual_observation" and fact.epistemic_status is EpistemicStatus.INFERENCE:

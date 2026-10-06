@@ -83,7 +83,7 @@ def test_source_prefix_uses_collection_method():
     assert build_ledger(raw(display_name="A")).facts[0].source == "provided:display_name"
 
 
-# --- Sufficiency gate -----------------------------------------------------------------------
+# --- Sufficiency gate ---------------------------------------------------------------------------
 
 
 def test_rich_public_profile_passes_gate():

@@ -60,7 +60,7 @@ def cli(tmp_path, *args):
     return proc.returncode, parse_output(doc), evidence
 
 
-# --- Independent invariants (do not reuse the guardrail code paths) ------------------------
+# --- Independent invariants (do not reuse the guardrail code paths) -----------------------------
 
 
 def assert_zero_sales(texts):
@@ -87,7 +87,7 @@ def assert_success_invariants(out: SuccessOutput, evidence: dict):
         for phrase in find_presumptions(text):
             assert phrase.casefold() in cited_text[i].casefold(), f"presumption {phrase!r} in message {i}"
 
-    # Demographic honesty: UNKNOWN, derived from a self-declared fact, or a labelled perceived INFERENCE (CR-001).
+    # Demographic honesty: UNKNOWN, derived from a self-declared fact, or a labelled perceived INFERENCE.
     demo = out.profile_data.estimated_demographics
     assert demo.gender == "UNKNOWN" or "tự khai báo" in demo.gender or (
         demo.gender.startswith("INFERENCE:") and "ước lượng từ" in demo.gender)
@@ -104,7 +104,7 @@ def assert_success_invariants(out: SuccessOutput, evidence: dict):
     assert evidence["validation"]["passed"] is True
 
 
-# --- Input -----------------------------------------------------------------------------------
+# --- Input --------------------------------------------------------------------------------------
 
 
 def test_input_valid_url(tmp_path):
@@ -126,7 +126,7 @@ def test_input_missing_url(tmp_path):
     assert code == 2 and out.error_note.startswith("INVALID_INPUT:")
 
 
-# --- Data availability -----------------------------------------------------------------------
+# --- Data availability --------------------------------------------------------------------------
 
 
 @pytest.mark.parametrize("case", ["public", "declared", "profile_id", "partial"])
@@ -160,7 +160,7 @@ def test_data_unknown_profile_reports_technical_limitation(tmp_path):
     assert code == 0 and out.error_note.startswith("TECHNICAL LIMITATION:")
 
 
-# --- AI ----------------------------------------------------------------------------------------
+# --- AI -----------------------------------------------------------------------------------------
 
 
 def _llm_run(responses):
@@ -214,7 +214,7 @@ def test_ai_sales_from_llm_never_reaches_output():
     assert result.output.ethical_rapport.sales_mention_check == "ZERO_SALES_CONFIRMED"
 
 
-# --- Rapport -----------------------------------------------------------------------------------
+# --- Rapport ------------------------------------------------------------------------------------
 
 
 @pytest.mark.parametrize("n", [5, 10])
@@ -230,7 +230,7 @@ def test_rapport_zero_sales_across_all_success_fixtures(tmp_path):
         assert_success_invariants(result.output, json.loads(result.evidence.model_dump_json()))
 
 
-# --- Output ------------------------------------------------------------------------------------
+# --- Output -------------------------------------------------------------------------------------
 
 
 def test_output_is_valid_json_schema_stdout_and_file(tmp_path):

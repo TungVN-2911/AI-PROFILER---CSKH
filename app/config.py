@@ -16,7 +16,6 @@ from pydantic import BaseModel, ConfigDict, Field, SecretStr, ValidationError, f
 
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
 
-# Settings field name -> environment variable name.
 ENV_VARS: dict[str, str] = {
     "llm_provider": "LLM_PROVIDER",
     "anthropic_api_key": "ANTHROPIC_API_KEY",
@@ -41,13 +40,13 @@ class ConfigError(ValueError):
 class Settings(BaseModel):
     model_config = ConfigDict(frozen=True, extra="forbid")
 
-    # CR-004: "auto" prefers Claude when both keys exist, else whichever key is configured.
+    # "auto" prefers Claude when both keys exist, else whichever key is configured.
     llm_provider: Literal["auto", "anthropic", "gemini"] = "auto"
     anthropic_api_key: SecretStr | None = None
     llm_model: str = Field(default="claude-opus-5-5", min_length=1)
     gemini_api_key: SecretStr | None = None
     gemini_model: str = Field(default="gemini-3.8-flash", min_length=1)
-    # BUG-002: tried in order when the primary model is overloaded, out of quota or unavailable.
+    # Tried in order when the primary model is overloaded, out of quota or unavailable.
     gemini_fallback_models: str = "gemini-3.5-flash,gemini-3.5-flash-lite"
     llm_timeout_seconds: float = Field(default=60.0, gt=0, le=600)
     llm_max_retries: int = Field(default=2, ge=0, le=5)

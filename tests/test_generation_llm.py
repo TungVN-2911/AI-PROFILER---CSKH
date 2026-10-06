@@ -100,7 +100,7 @@ def test_hallucinating_llm_is_rejected():
     assert any("UNGROUNDED_ENTITY" in h for h in result.history)
 
 
-# --- Prompts --------------------------------------------------------------------------------
+# --- Prompts ------------------------------------------------------------------------------------
 
 
 def test_user_prompt_lists_only_groundable_facts_and_unknowns():
@@ -108,7 +108,7 @@ def test_user_prompt_lists_only_groundable_facts_and_unknowns():
     prompt = build_user_prompt(ledger, 10, "vi")
     assert "Write in Vietnamese." in prompt and "exactly 10 messages" in prompt
     assert "F1 [name" in prompt and "F9 [post]" in prompt
-    # AI vision observations are offered as tentative (FR-019); they are not mixed with the FACT list.
+    # AI vision observations are offered as tentative; they are not mixed with the FACT list.
     assert f"{inference.id} [visual_observation — AI-perceived, mention tentatively]" in prompt
     assert "Unknown fields (never mention or guess): hometown, pronouns, gender, birth_year." in prompt
     assert prompt.index("<facts>") < prompt.index("F9 [post]") < prompt.index("</facts>")
@@ -164,7 +164,7 @@ def test_generation_passes_addressing_to_llm_and_fallback():
     assert result.mode == "deterministic" and result.draft.messages[0].text.startswith("Em chào chị")
 
 
-# --- Brand & product domain (CR-002, TASK-024) ----------------------------------------------
+# --- Brand & product domain ---------------------------------------------------------------------
 
 
 def test_llm_draft_mentioning_brand_or_hair_is_rejected():

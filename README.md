@@ -1,40 +1,40 @@
 # Facebook Profiler Agent — TES-3808
 
-CLI agent for customer care (CSKH). Given a Facebook profile URL and the profile data that can be legitimately
-accessed, it:
+Agent dòng lệnh (CLI) hỗ trợ chăm sóc khách hàng (CSKH). Nhận vào URL trang Facebook cá nhân của khách cùng dữ liệu
+trang cá nhân truy cập được một cách hợp lệ, agent sẽ:
 
-1. builds a **fact-grounded customer profile**: every statement is a `FACT` (with its source), a labelled
-   `INFERENCE`, or `UNKNOWN`;
-2. writes **5–10 empathy rapport messages** in Vietnamese with **zero sales** content;
-3. writes one **20:00 evening hook** grounded in a real fact.
+1. dựng **hồ sơ khách hàng có căn cứ**: mỗi thông tin là `FACT` (kèm nguồn), `INFERENCE` (suy luận, có gắn nhãn)
+   hoặc `UNKNOWN` (không biết);
+2. viết **5–10 tin nhắn làm quen** bằng tiếng Việt, **không bán hàng** (zero sales);
+3. viết **1 tin nhắn buổi tối gửi lúc 20:00** dựa trên một thông tin có thật.
 
-The result is strict JSON, printed to stdout and written to `output.json`. A separate `evidence.json` lists the
-fact behind every message.
+Kết quả là một chuỗi JSON chặt chẽ, in ra màn hình (stdout) và ghi vào `output.json`. File `evidence.json` đi kèm ghi
+lại mỗi tin nhắn dựa trên thông tin (fact) nào.
 
 ```bash
 pip install -r requirements.txt
 python main.py --url "https://www.facebook.com/fixture.minh.anh"
 ```
 
-> **Read first — technical limitation.** Facebook shows almost no profile content without logging in. This agent
-> never logs in and never bypasses CAPTCHAs, privacy settings or anti-bot measures. A real test against
-> facebook.com returned a login page (see `test_results.json`, case `live_facebook_attempt`). Profile data is
-> therefore supplied as JSON (`--profile-file`, or the local profile store). The repository ships **synthetic**
-> fixture personas for testing; no real person's data is included.
+> **Đọc trước — giới hạn kỹ thuật.** Khi chưa đăng nhập, Facebook gần như không hiển thị nội dung trang cá nhân.
+> Agent không bao giờ đăng nhập, không vượt CAPTCHA, cài đặt quyền riêng tư hay cơ chế chống bot. Một lần thử thật
+> với facebook.com trả về trang đăng nhập (xem `test_results.json`, trường hợp `live_facebook_attempt`). Vì vậy dữ
+> liệu trang cá nhân được cung cấp dưới dạng JSON (`--profile-file` hoặc thư mục dữ liệu cục bộ). Repo chỉ chứa các
+> persona **giả lập** để thử nghiệm, không có dữ liệu của người thật.
 
 ---
 
-## 1. Requirements
+## 1. Yêu cầu
 
-- Python **3.11+** (developed and tested on 3.12.10, Windows 11)
-- No API key needed for the default run. An LLM key is **optional** and enables AI message writing and image
-  description. Two providers are supported:
-  - **Gemini.** Get a free key at https://aistudio.google.com/apikey; no billing is needed for the free tier.
-  - **Claude.** Needs an Anthropic API key with billing enabled.
+- Python **3.11 trở lên** (phát triển và kiểm thử trên 3.12.10, Windows 11).
+- Chạy mặc định **không cần API key**: khi đó tin nhắn được sinh bằng template. Có key thì AI sẽ viết tin nhắn và
+  mô tả ảnh. Hỗ trợ hai nhà cung cấp:
+  - **Gemini**: lấy key miễn phí tại https://aistudio.google.com/apikey, hạng miễn phí không cần thiết lập billing.
+  - **Claude**: cần API key của Anthropic đã bật billing.
 
-  To use Gemini, put the key in `.env`: `GEMINI_API_KEY=...`.
+  Để dùng Gemini, ghi key vào file `.env`: `GEMINI_API_KEY=...`.
 
-## 2. Installation
+## 2. Cài đặt
 
 ```bash
 git clone <repository-url>
@@ -42,76 +42,75 @@ cd AI-PROFILER---CSKH
 python -m venv .venv
 ```
 
-Activate the virtual environment:
+Kích hoạt môi trường ảo:
 
-| Shell | Command |
+| Shell | Lệnh |
 |---|---|
 | Windows PowerShell | `.venv\Scripts\Activate.ps1` |
 | Windows cmd | `.venv\Scripts\activate.bat` |
 | Git Bash | `source .venv/Scripts/activate` |
 | macOS / Linux | `source .venv/bin/activate` |
 
-Then install the dependencies:
+Sau đó cài thư viện:
 
 ```bash
 pip install -r requirements.txt
 ```
 
-**Windows notes**
+**Lưu ý trên Windows**
 
-- **Long paths.** Clone into a short path such as `C:\src\AI-PROFILER---CSKH`. The `anthropic` SDK contains file
-  names of about 90 characters, so a deeply nested clone can make `pip install` fail with
-  `OSError ... Long Path support`. Alternatively, enable long paths in Windows.
-- **PowerShell execution policy.** If `Activate.ps1` is blocked, either run
-  `Set-ExecutionPolicy -Scope Process Bypass` first, or skip activation and call the interpreter directly:
-  `.venv\Scripts\python.exe main.py --url "…"`.
+- **Đường dẫn dài.** Hãy clone vào đường dẫn ngắn, ví dụ `C:\src\AI-PROFILER---CSKH`. SDK `anthropic` có tên file
+  dài khoảng 90 ký tự, nên đặt repo quá sâu có thể làm `pip install` lỗi `OSError ... Long Path support`. Hoặc bật
+  hỗ trợ đường dẫn dài trong Windows.
+- **Execution policy của PowerShell.** Nếu `Activate.ps1` bị chặn, chạy trước `Set-ExecutionPolicy -Scope Process Bypass`,
+  hoặc bỏ qua bước kích hoạt và gọi trực tiếp: `.venv\Scripts\python.exe main.py --url "…"`.
 
-## 3. Environment variables
+## 3. Biến môi trường
 
-Every variable is optional, so the agent runs without a `.env` file. To change settings, copy `.env.example` to
-`.env` and edit it.
+Mọi biến đều không bắt buộc, agent chạy được khi không có file `.env`. Muốn đổi cấu hình thì sao chép `.env.example`
+thành `.env` rồi chỉnh sửa.
 
-| Variable | Default | Purpose |
+| Biến | Mặc định | Ý nghĩa |
 |---|---|---|
-| `LLM_PROVIDER` | `auto` | `auto` uses Claude if `ANTHROPIC_API_KEY` is set, else Gemini if `GEMINI_API_KEY` is set. Set `anthropic` or `gemini` to force one provider. Without a key, the deterministic template generator is used. |
-| `GEMINI_API_KEY` | *(unset)* | Google AI Studio key (free tier available). |
-| `GEMINI_MODEL` | `gemini-3.8-flash` | Gemini model id. |
-| `GEMINI_FALLBACK_MODELS` | `gemini-3.5-flash,gemini-3.5-flash-lite` | Models tried in order when the primary is overloaded (503), out of quota (429), missing or timing out. `evidence.json` records the model that answered. |
-| `ANTHROPIC_API_KEY` | *(unset)* | Anthropic key (requires billing). |
-| `LLM_MODEL` | `claude-opus-5-5` | Claude model id. |
-| `LLM_TIMEOUT_SECONDS` | `60` | Timeout per LLM call. |
-| `LLM_MAX_RETRIES` | `2` | Retries with validator feedback before falling back to templates. |
-| `OUTPUT_LANGUAGE` | `vi` | Language of generated messages. |
-| `DEFAULT_MESSAGE_COUNT` | `10` | Target number of rapport messages (5–10). |
-| `LIVE_FETCH_ENABLED` | `false` | Same as `--live` (see below). |
-| `PROFILE_STORE_DIR` | `fixtures/profiles` | Directory of provided profile JSON files, matched by URL. |
-| `MIN_GROUNDING_FACTS` | `2` | Minimum number of real facts besides the name required for `SUCCESS`. |
+| `LLM_PROVIDER` | `auto` | `auto`: dùng Claude nếu có `ANTHROPIC_API_KEY`, nếu không thì dùng Gemini nếu có `GEMINI_API_KEY`. Đặt `anthropic` hoặc `gemini` để chọn cố định. Không có key thì dùng template. |
+| `GEMINI_API_KEY` | *(trống)* | Key Google AI Studio (có hạng miễn phí). |
+| `GEMINI_MODEL` | `gemini-3.8-flash` | Model Gemini chính. |
+| `GEMINI_FALLBACK_MODELS` | `gemini-3.5-flash,gemini-3.5-flash-lite` | Các model dự phòng, thử lần lượt khi model chính quá tải (503), hết quota (429), không tồn tại hoặc quá thời gian chờ. `evidence.json` ghi model đã thực sự trả lời. |
+| `ANTHROPIC_API_KEY` | *(trống)* | Key Anthropic (cần billing). |
+| `LLM_MODEL` | `claude-opus-5-5` | Model Claude. |
+| `LLM_TIMEOUT_SECONDS` | `60` | Thời gian chờ tối đa cho mỗi lời gọi LLM. |
+| `LLM_MAX_RETRIES` | `2` | Số lần thử lại (kèm phản hồi lỗi) trước khi chuyển sang template. |
+| `OUTPUT_LANGUAGE` | `vi` | Ngôn ngữ của tin nhắn. |
+| `DEFAULT_MESSAGE_COUNT` | `10` | Số tin nhắn làm quen muốn sinh (5–10). |
+| `LIVE_FETCH_ENABLED` | `false` | Tương đương `--live` (xem bên dưới). |
+| `PROFILE_STORE_DIR` | `fixtures/profiles` | Thư mục chứa các file dữ liệu trang cá nhân, tra cứu theo URL. |
+| `MIN_GROUNDING_FACTS` | `2` | Số thông tin thật tối thiểu (ngoài tên) để được `SUCCESS`. |
 
-The API key is never logged or printed.
+API key không bao giờ bị ghi log hay in ra.
 
-## 4. Configuration and CLI options
+## 4. Cấu hình và tùy chọn dòng lệnh
 
 ```text
 python main.py --url URL [--profile-file FILE] [--output output.json] [--evidence evidence.json]
                [--mode auto|llm|deterministic] [--live] [--messages 5..10] [--verbose]
 ```
 
-| Option | Meaning |
+| Tùy chọn | Ý nghĩa |
 |---|---|
-| `--url` | Facebook profile URL. Accepted forms: `facebook.com/<username>`, `m.`/`mbasic.`/`web.` hosts, `profile.php?id=<digits>`, `/people/<name>/<id>`. Tracking parameters are removed. |
-| `--profile-file` | JSON file with legitimately obtained profile data for this URL (format: `fixtures/README.md`). The file's `facebook_url` must match `--url`. |
-| `--mode` | `auto` (default): Claude if a key is set, otherwise templates. `llm`: requires a key. `deterministic`: templates only, no LLM calls. |
-| `--live` | Opt-in. Sends **one** unauthenticated request with an honest User-Agent and reads only public `og:*` meta tags. Never logs in or retries. A login page is reported as a limitation. |
-| `--messages` | Target number of rapport messages, 5–10. |
-| `--verbose` | Writes pipeline-stage logs to **stderr**. stdout always contains only the JSON. |
+| `--url` | URL trang Facebook cá nhân. Chấp nhận `facebook.com/<username>`, các host `m.` / `mbasic.` / `web.`, `profile.php?id=<số>`, `/people/<tên>/<id>`. Tham số theo dõi (tracking) được loại bỏ. |
+| `--profile-file` | File JSON chứa dữ liệu trang cá nhân lấy được hợp lệ (định dạng: `fixtures/README.md`). `facebook_url` trong file phải khớp với `--url`. |
+| `--mode` | `auto` (mặc định): dùng LLM nếu có key, không thì dùng template. `llm`: bắt buộc có key. `deterministic`: chỉ dùng template, không gọi LLM. |
+| `--live` | Tùy chọn bật thêm. Gửi **đúng một** request không đăng nhập, User-Agent trung thực, chỉ đọc các thẻ meta `og:*` công khai. Không đăng nhập, không thử lại. Gặp trang đăng nhập thì báo là giới hạn kỹ thuật. |
+| `--messages` | Số tin nhắn làm quen muốn sinh, 5–10. |
+| `--verbose` | In log từng bước ra **stderr**. stdout luôn chỉ chứa JSON. |
 
-## 5. Run
+## 5. Chạy
 
 ```bash
 python main.py --url "https://www.facebook.com/fixture.minh.anh"
 ```
 
-Other ready-made examples (all synthetic, listed in [`fixtures/README.md`](fixtures/README.md)):
+Các ví dụ có sẵn khác (đều là dữ liệu giả lập, liệt kê trong [`fixtures/README.md`](fixtures/README.md)):
 
 ```bash
 python main.py --url "https://www.facebook.com/fixture.thu.ha"
@@ -121,13 +120,13 @@ python main.py --url "https://www.facebook.com/fixture.thu.ha"
 python main.py --url "https://www.facebook.com/fixture.private.user"
 ```
 
-To use your own legitimately obtained profile data:
+Dùng dữ liệu trang cá nhân do bạn tự cung cấp (lấy hợp lệ):
 
 ```bash
 python main.py --url "https://www.facebook.com/fixture.thu.ha" --profile-file fixtures/profiles/partial_thu_ha.json --output runs/thu_ha/output.json --evidence runs/thu_ha/evidence.json
 ```
 
-To run the tests and the recorded final test run:
+Chạy bộ test và lượt chạy kiểm thử tổng hợp (kết quả được lưu lại):
 
 ```bash
 python -m pytest -q
@@ -137,35 +136,34 @@ python -m pytest -q
 python scripts/run_test_profiles.py
 ```
 
-### Running on real profiles (with consent)
+### Chạy với trang cá nhân thật (có sự đồng ý)
 
-The brief asks for runs on at least 3 real Facebook profiles. The agent does not scrape Facebook, so real data is
-entered by a person who has the profile owner's consent, for example your own profile or a friend who agrees. Only
-copy what is publicly visible.
+Đề bài yêu cầu chạy trên ít nhất 3 trang Facebook cá nhân thật. Agent không tự lấy dữ liệu từ Facebook, nên dữ liệu
+thật do một người được chủ trang đồng ý nhập vào, ví dụ trang của chính bạn hoặc của bạn bè đã đồng ý. Chỉ chép lại
+những gì đang hiển thị công khai.
 
-1. Create a fill-in file for each profile. Files are written to `runs/real/`, which is git-ignored:
+1. Tạo file mẫu cho từng trang cá nhân. File được ghi vào `runs/real/`, thư mục này đã được git-ignore:
 
    ```bash
    python scripts/new_profile.py --url "https://www.facebook.com/<username>"
    ```
 
-2. Fill in `display_name`, `bio`, `public_info`, the latest public posts, and the profile picture. For the picture,
-   write a short `alt_text` description, or set `path` to a saved image so the vision model describes it. The script
-   prints these instructions.
-3. Run them all at once:
+2. Điền `display_name`, `bio`, `public_info`, các bài đăng công khai gần nhất và ảnh đại diện. Với ảnh, ghi một mô tả
+   ngắn vào `alt_text`, hoặc đặt `path` trỏ tới file ảnh đã lưu để mô hình AI tự mô tả. Script sẽ in hướng dẫn chi tiết.
+3. Chạy tất cả cùng lúc:
 
    ```bash
    python scripts/run_test_profiles.py --profiles-dir runs/real
    ```
 
-   Results go to `runs/test_results_real.json`, and each profile's output goes to `runs/real_run/<name>/`. The
-   committed `test_results.json`, `output.json` and `evidence.json` are never touched in this mode. Publish real
-   results only with the owners' consent. On the Gemini free tier, Google may use the data to improve its products.
+   Kết quả ghi vào `runs/test_results_real.json`, output từng trang nằm trong `runs/real_run/<tên>/`. Ở chế độ này,
+   các file `test_results.json`, `output.json`, `evidence.json` đang được commit không bao giờ bị động tới. Chỉ công
+   bố kết quả thật khi chủ trang đồng ý. Ở hạng miễn phí của Gemini, Google có thể dùng dữ liệu để cải thiện sản phẩm.
 
-## 6. Example input
+## 6. Ví dụ đầu vào
 
-The minimal input is a URL. The profile data behind `fixture.minh.anh` is
-[`fixtures/profiles/minh_anh.json`](fixtures/profiles/minh_anh.json) (excerpt):
+Đầu vào tối thiểu là một URL. Dữ liệu đằng sau `fixture.minh.anh` nằm trong
+[`fixtures/profiles/minh_anh.json`](fixtures/profiles/minh_anh.json) (trích đoạn):
 
 ```json
 {
@@ -180,13 +178,11 @@ The minimal input is a URL. The profile data behind `fixture.minh.anh` is
 }
 ```
 
-## 7. Example output
+## 7. Ví dụ đầu ra
 
-`SUCCESS` in template mode (no API key), abridged. With a Gemini or Claude key, the messages are written by the model
-and checked by the same guardrails. The committed [`output.json`](output.json) and the `test_results.json` cases come
-from such an LLM run.
-
-
+`SUCCESS` ở chế độ template (không có API key), đã rút gọn. Khi có key Gemini hoặc Claude, tin nhắn do mô hình viết và
+được kiểm tra bằng cùng bộ guardrail. File [`output.json`](output.json) và các trường hợp trong `test_results.json` đang
+commit được tạo từ một lượt chạy có LLM như vậy.
 
 ```json
 {
@@ -220,14 +216,14 @@ from such an LLM run.
 }
 ```
 
-Gender and age are `UNKNOWN` here because this profile does not declare them and the fixture has no image file for
-the vision model. With an API key and a profile picture, the agent adds a perceived estimate that is clearly
-labelled, for example `INFERENCE: Nữ (ước lượng từ ảnh đại diện, độ tin cậy 0.85) [F13]` or
-`INFERENCE: 25–35 tuổi (ước lượng từ ảnh đại diện, độ tin cậy 0.70) [F14]`. Self-declared values read like
-`Nữ (tự khai báo trên trang cá nhân [F8])` and `29–30 tuổi (tính từ năm sinh tự khai báo 1996 [F9], tại năm 2026)`.
-Self-declared data always wins, and the agent never guesses demographics from names.
+Ở đây giới tính và độ tuổi là `UNKNOWN` vì trang cá nhân này không tự khai báo, và fixture không có file ảnh để mô
+hình đọc. Khi có API key và ảnh đại diện, agent thêm một ước lượng được gắn nhãn rõ ràng, ví dụ
+`INFERENCE: Nữ (ước lượng từ ảnh đại diện, độ tin cậy 0.85) [F13]` hoặc
+`INFERENCE: 25–35 tuổi (ước lượng từ ảnh đại diện, độ tin cậy 0.70) [F14]`. Giá trị tự khai báo có dạng
+`Nữ (tự khai báo trên trang cá nhân [F8])` và `29–30 tuổi (tính từ năm sinh tự khai báo 1996 [F9], tại năm 2026)`.
+Dữ liệu tự khai báo luôn được ưu tiên, và agent không bao giờ đoán nhân khẩu học từ tên.
 
-`PARTIAL_OR_PRIVATE` (private profile):
+`PARTIAL_OR_PRIVATE` (trang cá nhân bị khóa):
 
 ```json
 {
@@ -237,126 +233,124 @@ Self-declared data always wins, and the agent never guesses demographics from na
 }
 ```
 
-`evidence.json` (not part of the strict schema) records the access state, data source, synthetic flag, the full
-fact ledger (`F1…Fn` with sources and FACT/INFERENCE status), the facts cited by each message, the angle, the
-lifestyle and the hook, every LLM attempt and validator violation, and the technical limitations.
+`evidence.json` (không thuộc schema bắt buộc) ghi lại: trạng thái truy cập, nguồn dữ liệu, cờ dữ liệu giả lập, toàn bộ
+danh sách thông tin (`F1…Fn` kèm nguồn và trạng thái FACT/INFERENCE), các thông tin được trích cho từng tin nhắn, góc
+thấu cảm, lối sống và tin nhắn buổi tối, mọi lần thử của LLM và lỗi bị guardrail phát hiện, cùng các giới hạn kỹ thuật.
 
-## 8. Error handling
+## 8. Xử lý lỗi
 
-Every human-readable text is Vietnamese, matching the brief. It is preceded by a fixed English code (`INVALID_INPUT:`,
-`PRIVATE_PROFILE:`, `NOT_FOUND:`, `NO_IMAGE:`, `INSUFFICIENT_DATA:`, `UNREACHABLE:`, `INTERNAL_ERROR:`,
-`TECHNICAL LIMITATION:`, plus `NOT_AVAILABLE:`, `INFERENCE:`, `UNKNOWN` inside fields) so other systems can branch on it.
+Mọi câu chữ người đọc được đều bằng tiếng Việt, đúng như đề bài. Phía trước là một mã cố định bằng tiếng Anh
+(`INVALID_INPUT:`, `PRIVATE_PROFILE:`, `NOT_FOUND:`, `NO_IMAGE:`, `INSUFFICIENT_DATA:`, `UNREACHABLE:`, `INTERNAL_ERROR:`,
+`TECHNICAL LIMITATION:`, cùng `NOT_AVAILABLE:`, `INFERENCE:`, `UNKNOWN` bên trong các trường) để hệ thống khác có thể
+phân loại theo mã.
 
-stdout always contains exactly one valid JSON document, and `output.json` is always written.
+stdout luôn chứa đúng một chuỗi JSON hợp lệ, và `output.json` luôn được ghi.
 
-| Situation | `status` | `error_note` starts with | Exit code |
+| Tình huống | `status` | `error_note` bắt đầu bằng | Exit code |
 |---|---|---|---|
-| Missing / invalid URL, unknown option, bad `--messages` | `PARTIAL_OR_PRIVATE` | `INVALID_INPUT:` | 2 |
-| Malformed `--profile-file`, or the file is for another URL | `PARTIAL_OR_PRIVATE` | `INVALID_INPUT:` | 2 |
-| `--mode llm` without an LLM key (`ANTHROPIC_API_KEY` / `GEMINI_API_KEY`) | `PARTIAL_OR_PRIVATE` | `TECHNICAL LIMITATION:` | 2 |
-| No accessible data (no file, not in store, `--live` off) | `PARTIAL_OR_PRIVATE` | `TECHNICAL LIMITATION:` | 0 |
-| `--live` hits a login wall / checkpoint | `PARTIAL_OR_PRIVATE` | `TECHNICAL LIMITATION:` | 0 |
-| Private profile | `PARTIAL_OR_PRIVATE` | `PRIVATE_PROFILE:` | 0 |
-| Dead link (404 / "content isn't available") | `PARTIAL_OR_PRIVATE` | `NOT_FOUND:` | 0 |
-| Network error / timeout / 403 / 429 / 5xx | `PARTIAL_OR_PRIVATE` | `UNREACHABLE:` | 0 |
-| Fewer than 2 real facts besides the name, or no grounded draft possible | `PARTIAL_OR_PRIVATE` | `INSUFFICIENT_DATA:` | 0 |
-| No public image could be collected or read (brief §4) | `PARTIAL_OR_PRIVATE` | `NO_IMAGE:` | 0 |
-| LLM refuses / times out / keeps violating rules | `SUCCESS` via the template generator (recorded in evidence) | — | 0 |
-| Unexpected internal error | `PARTIAL_OR_PRIVATE` | `INTERNAL_ERROR:` | 1 |
+| Thiếu / sai URL, tùy chọn không tồn tại, `--messages` sai | `PARTIAL_OR_PRIVATE` | `INVALID_INPUT:` | 2 |
+| `--profile-file` hỏng, hoặc là dữ liệu của URL khác | `PARTIAL_OR_PRIVATE` | `INVALID_INPUT:` | 2 |
+| `--mode llm` khi chưa có key (`ANTHROPIC_API_KEY` / `GEMINI_API_KEY`) | `PARTIAL_OR_PRIVATE` | `TECHNICAL LIMITATION:` | 2 |
+| Không có dữ liệu truy cập được (không có file, không có trong thư mục dữ liệu, không bật `--live`) | `PARTIAL_OR_PRIVATE` | `TECHNICAL LIMITATION:` | 0 |
+| `--live` gặp trang đăng nhập / xác minh | `PARTIAL_OR_PRIVATE` | `TECHNICAL LIMITATION:` | 0 |
+| Trang cá nhân bị khóa | `PARTIAL_OR_PRIVATE` | `PRIVATE_PROFILE:` | 0 |
+| Link chết (404 / "nội dung không khả dụng") | `PARTIAL_OR_PRIVATE` | `NOT_FOUND:` | 0 |
+| Lỗi mạng / quá thời gian chờ / 403 / 429 / 5xx | `PARTIAL_OR_PRIVATE` | `UNREACHABLE:` | 0 |
+| Ít hơn 2 thông tin thật ngoài tên, hoặc không viết được bản nháp có căn cứ | `PARTIAL_OR_PRIVATE` | `INSUFFICIENT_DATA:` | 0 |
+| Không thu thập hoặc không đọc được ảnh công khai nào (đề bài mục 4) | `PARTIAL_OR_PRIVATE` | `NO_IMAGE:` | 0 |
+| LLM từ chối / quá thời gian chờ / liên tục vi phạm luật | `SUCCESS` nhờ bộ sinh template (có ghi trong evidence) | — | 0 |
+| Lỗi nội bộ ngoài dự kiến | `PARTIAL_OR_PRIVATE` | `INTERNAL_ERROR:` | 1 |
 
-## 9. Architecture overview
-
-```text
-CLI ─► input validation ─► data sources (profile file → profile store → opt-in live meta)
-    ─► fact ledger (F1..Fn: FACT with source; missing fields → UNKNOWN)
-    ─► visual context (provided alt text, or Claude vision → INFERENCE observations)
-    ─► sufficiency gate (SUCCESS only with a name + ≥ 2 real facts + a readable public image)
-    ─► demographics (self-declared, else labelled INFERENCE from the profile picture) + lifestyle (labelled INFERENCE)
-    ─► engagement generation: Claude or Gemini (structured JSON output, must cite fact ids)
-          └─ deterministic guardrails ─ violations → retry with feedback (≤ 2) → template generator
-    ─► final guardrail check ─► strict JSON (stdout + output.json) + evidence.json
-```
-
-- **Zero hallucination by construction.** Generators may only cite ledger ids. The validator rejects:
-  - unknown ids, INFERENCE ids and demographic ids;
-  - numbers and names that are not in the cited facts;
-  - presumptions such as "you must be tired after work";
-  - sensitive-attribute terms;
-  - neutral messages that make claims about the customer.
-- **No brand, no product talk.** The brand **Dr.Bee** is rejected in any spelling (`Dr. Bee`, `DrBee`, `dr bee`,
-  `Bác sĩ Bee`…), and so is its product domain: hair and scalp problems and hair-care products (`rụng tóc`, `da đầu`,
-  `dầu gội`, `serum`, `hair loss`…). This holds even when the customer's own posts mention them. Generic beauty and
-  pharma words (`tóc`, `mỹ phẩm`, `dược sĩ`…) are allowed only when the customer wrote them, for example a pharmacist's
-  job title. The word lists live in `app/lexicons.py`.
-- **Zero sales.** The validator rejects Vietnamese and English commercial vocabulary, prices (`199k`, `1.500.000đ`,
-  `20%`), URLs, phone numbers, e-mail addresses and hashtags. `ZERO_SALES_CONFIRMED` is written only after the
-  final validation passes.
-- **Warm, grounded tone.** The first message greets the customer and mentions the profile picture when an image
-  description exists. Messages honour what the customer shares, rather than asking them to confirm facts. The evening
-  hook is a gentle wish around one real fact. Family topics are allowed only when a cited fact is about family, and
-  "sau giờ làm việc" only when a work fact is cited. The LLM prompt carries a style guide from the brief, and the
-  template generator follows the same tone.
-- **Forms of address.** The agent writes "em" and calls the customer "chị" or "anh" when gender is self-declared
-  (gender field or pronouns) or confidently perceived from the profile picture. Otherwise it uses the neutral
-  "bạn" / "mình". The choice and its basis are recorded in `evidence.json`. Quoted customer text is never rewritten.
-- **Provider isolation.** Only `app/llm/anthropic_client.py` imports the `anthropic` SDK, and only
-  `app/llm/gemini_client.py` imports `google-genai`. Both implement the same `LLMClient` protocol.
-  `app/sources/live_meta.py` is the only code that contacts Facebook.
-- **AI is used only where needed:** image description and natural message writing. URL handling, data loading,
-  demographics, the SUCCESS decision and all validation are deterministic code.
-
-Details: [requirements.md](requirements.md) · [architecture.md](architecture.md) · [plan.md](plan.md) ·
-[task.md](task.md) (implementation status, single source of truth) · [fixtures/README.md](fixtures/README.md).
+## 9. Tổng quan kiến trúc
 
 ```text
-main.py                     entry point
-app/cli.py, output.py       CLI, JSON output
-app/pipeline.py             orchestration + error matrix
-app/input.py                URL validation
-app/sources/                profile file / store / live meta adapters
-app/ledger.py               fact ledger + sufficiency gate
-app/vision.py               visual context
-app/intel.py                demographics + lifestyle
-app/generation/             prompts, LLM generator, deterministic generator
-app/guardrails.py           validators;  app/lexicons.py word lists
-app/llm/                    LLM protocol, Claude adapter, fake client
-fixtures/profiles/          synthetic test personas
-tests/                      unit + integration tests (offline)
-scripts/run_test_profiles.py  final test run → test_results.json
+CLI ─► kiểm tra đầu vào ─► nguồn dữ liệu (file profile → thư mục dữ liệu → đọc meta công khai nếu bật --live)
+    ─► danh sách thông tin F1..Fn (FACT kèm nguồn; trường thiếu → UNKNOWN)
+    ─► mô tả hình ảnh (alt_text được cung cấp, hoặc mô hình đọc ảnh → quan sát dạng INFERENCE)
+    ─► ngưỡng đủ dữ liệu (SUCCESS chỉ khi có tên + ≥ 2 thông tin thật + một ảnh công khai đọc được)
+    ─► nhân khẩu học (tự khai báo, nếu không thì INFERENCE ước lượng từ ảnh đại diện) + lối sống (INFERENCE)
+    ─► sinh tin nhắn: Gemini hoặc Claude (JSON có cấu trúc, bắt buộc trích ID thông tin)
+          └─ guardrail tất định ─ vi phạm → thử lại kèm phản hồi lỗi (≤ 2 lần) → bộ sinh template
+    ─► kiểm tra guardrail lần cuối ─► JSON chặt chẽ (stdout + output.json) + evidence.json
 ```
 
-## 10. Known limitations
+- **Không bịa đặt ngay từ thiết kế.** Bộ sinh tin nhắn chỉ được trích các ID có trong danh sách thông tin. Guardrail
+  từ chối:
+  - ID không tồn tại, ID của thông tin suy luận (INFERENCE) và ID nhân khẩu học;
+  - con số, tên riêng không có trong thông tin được trích;
+  - câu giả định hoàn cảnh của khách, như "chắc bạn vừa đi làm về mệt lắm";
+  - từ ngữ về thuộc tính nhạy cảm;
+  - tin nhắn trung tính nhưng lại khẳng định điều gì đó về khách.
+- **Không nhắc thương hiệu, không nói chuyện sản phẩm.** Thương hiệu **Dr.Bee** bị chặn ở mọi cách viết (`Dr. Bee`,
+  `DrBee`, `dr bee`, `Bác sĩ Bee`…), cùng toàn bộ mảng sản phẩm: vấn đề tóc, da đầu và sản phẩm chăm sóc tóc
+  (`rụng tóc`, `da đầu`, `dầu gội`, `serum`, `hair loss`…), kể cả khi chính khách nhắc đến trong bài đăng. Các từ chung
+  về làm đẹp và dược (`tóc`, `mỹ phẩm`, `dược sĩ`…) chỉ được dùng khi chính khách viết ra, ví dụ nghề nghiệp là dược sĩ.
+  Danh sách từ nằm trong `app/lexicons.py`.
+- **Zero sales.** Guardrail từ chối từ ngữ thương mại tiếng Việt và tiếng Anh, giá tiền (`199k`, `1.500.000đ`, `20%`),
+  URL, số điện thoại, email và hashtag. `ZERO_SALES_CONFIRMED` chỉ được ghi sau khi lần kiểm tra cuối cùng đạt.
+- **Giọng văn ấm áp, có căn cứ.** Tin đầu tiên chào khách và nhắc tới ảnh đại diện khi có mô tả ảnh. Các tin nhắn trân
+  trọng điều khách chia sẻ thay vì hỏi để xác nhận thông tin. Tin nhắn buổi tối là một lời chúc nhẹ nhàng quanh một
+  thông tin có thật. Chủ đề gia đình chỉ được nhắc khi thông tin được trích nói về gia đình, và "sau giờ làm việc" chỉ
+  khi có trích thông tin công việc. Prompt của LLM có hướng dẫn giọng văn theo đề bài; bộ sinh template theo cùng giọng.
+- **Cách xưng hô.** Agent xưng "em" và gọi khách là "chị" hoặc "anh" khi giới tính được tự khai báo (trường giới tính
+  hoặc pronouns) hoặc ước lượng từ ảnh với độ tin cậy cao. Còn lại dùng "bạn" / "mình". Lựa chọn và căn cứ được ghi
+  trong `evidence.json`. Lời trích của khách không bao giờ bị sửa.
+- **Tách biệt nhà cung cấp.** Chỉ `app/llm/anthropic_client.py` import SDK `anthropic`, chỉ `app/llm/gemini_client.py`
+  import `google-genai`. Cả hai cùng hiện thực interface `LLMClient`. Chỉ `app/sources/live_meta.py` liên lạc với
+  Facebook.
+- **Chỉ dùng AI ở nơi cần thiết:** mô tả ảnh và viết tin nhắn tự nhiên. Kiểm tra URL, đọc dữ liệu, nhân khẩu học,
+  quyết định SUCCESS và toàn bộ việc kiểm tra đều là code tất định.
 
-- **TECHNICAL LIMITATION: Facebook access.** Without logging in, Facebook returns a login page for profiles; one
-  real attempt in `test_results.json` returned `LOGIN_REQUIRED`. The agent does not log in, use cookies, solve
-  CAPTCHAs or rotate IPs, so real profile data must be supplied via `--profile-file` (for example exported with the
-  customer's consent or collected manually from what is publicly visible). `--live` can read only public `og:*`
-  meta tags. These are usually unavailable, and when present they contain at most a name, a short description and
-  an image URL.
-- **Committed test data is synthetic.** The representative runs in `test_results.json` use the fictional fixtures in
-  `fixtures/profiles/`, and no real person's data is committed. For the brief's runs on 3 real profiles, use the
-  consent workflow in section 5 ("Running on real profiles"). Its results stay in `runs/` unless the owners agree to
-  publish them.
-- **LLM verification.** The Gemini path was verified live on 2026-10-06. Structured output worked, an overloaded
-  primary model fell back to the next model, the guardrails rejected a first draft, and the model fixed it on the
-  retry. The Claude path is covered by offline tests only, because the Anthropic API needs billing. On the free tier,
-  Gemini models are often overloaded (HTTP 503), so a run can take a minute while the agent falls back to the next
-  model. Set `GEMINI_MODEL` to a less busy model to avoid the wait.
-- **Privacy on the Gemini free tier.** Google's pricing page states that free-tier content may be used to improve
-  Google's products. Use the free tier only with synthetic or consented test data. For real customer data, use a
-  paid tier or Claude.
-- **Rule-based guardrails.** Word lists and heuristics can miss paraphrased soft-selling or subtle claims, and the
-  entity check only covers numbers and capitalised words. Review `evidence.json` before sending messages.
-- **Template mode reads less naturally than an LLM.** Messages are fully grounded but follow a fixed set of
-  Vietnamese templates. With a Gemini or Claude key, messages are written by the model and checked by the same
-  guardrails.
-- **Subtle presumptions can slip through.** In a live Gemini run, a hook wished the customer an evening "bên giai
-  điệu ukulele quen thuộc", mildly assuming what she would do tonight. Rule-based checks catch explicit patterns
-  ("chắc hẳn", "tối nay bạn…", "mệt mỏi"), not every nuance. Review messages before sending.
-- **No scheduler and no sending.** `trigger_time: "20:00"` describes when the hook is meant to be sent. The agent
-  never sends messages; an operator reviews and sends them.
-- **Demographics are estimates at best.** Self-declared data is used first. Otherwise the vision model may give a
-  perceived gender presentation and an apparent age range from the profile picture. It does so only when exactly one
-  person is visible, the gender confidence is at least 0.7, and the age range is at most 15 years wide with a
-  confidence of at least 0.6. Estimates are labelled `INFERENCE` and can be wrong. They are never used as message
-  topics. Without an API key or a profile picture, the fields stay `UNKNOWN`.
+Tài liệu chi tiết (tiếng Anh): [requirements.md](requirements.md) · [architecture.md](architecture.md) ·
+[plan.md](plan.md) · [task.md](task.md) (trạng thái triển khai) · [fixtures/README.md](fixtures/README.md).
+
+```text
+main.py                       điểm vào chương trình
+app/cli.py, output.py         dòng lệnh, ghi JSON
+app/pipeline.py               điều phối các bước + bảng xử lý lỗi
+app/input.py                  kiểm tra URL
+app/sources/                  nguồn dữ liệu: file / thư mục dữ liệu / meta công khai
+app/ledger.py                 danh sách thông tin + ngưỡng đủ dữ liệu
+app/vision.py                 mô tả hình ảnh
+app/intel.py                  nhân khẩu học, lối sống, cách xưng hô
+app/generation/               prompt, bộ sinh dùng LLM, bộ sinh template
+app/guardrails.py             bộ kiểm tra;  app/lexicons.py danh sách từ
+app/llm/                      interface LLM, adapter Claude, adapter Gemini, client giả lập cho test
+fixtures/profiles/            các persona giả lập để thử nghiệm
+tests/                        test đơn vị + tích hợp (offline)
+scripts/new_profile.py        tạo file mẫu cho trang cá nhân thật (có đồng ý)
+scripts/run_test_profiles.py  lượt chạy kiểm thử → test_results.json
+```
+
+## 10. Giới hạn đã biết
+
+- **TECHNICAL LIMITATION: truy cập Facebook.** Khi chưa đăng nhập, Facebook trả về trang đăng nhập; một lần thử thật
+  trong `test_results.json` cho kết quả `LOGIN_REQUIRED`. Agent không đăng nhập, không dùng cookie, không giải CAPTCHA,
+  không đổi IP, nên dữ liệu trang cá nhân thật phải được cung cấp qua `--profile-file` (ví dụ khách tự xuất dữ liệu với
+  sự đồng ý, hoặc nhân viên chép tay phần công khai). `--live` chỉ đọc được thẻ meta `og:*` công khai; các thẻ này
+  thường không có, và nếu có thì cũng chỉ gồm tên, một đoạn mô tả ngắn và URL ảnh.
+- **Dữ liệu test được commit là giả lập.** Các trường hợp trong `test_results.json` dùng persona hư cấu trong
+  `fixtures/profiles/`, không có dữ liệu người thật nào được commit. Để chạy trên 3 trang cá nhân thật như đề bài, dùng
+  quy trình có sự đồng ý ở mục 5. Kết quả nằm trong `runs/` trừ khi chủ trang đồng ý công bố.
+- **Kiểm chứng LLM.** Nhánh Gemini đã được kiểm chứng thật ngày 2026-10-06: output có cấu trúc chạy đúng, model chính bị
+  quá tải thì tự chuyển sang model dự phòng, guardrail loại bản nháp đầu và model sửa ở lần thử lại. Nhánh Claude mới
+  chỉ được kiểm chứng bằng test offline, vì API Anthropic cần billing. Ở hạng miễn phí, Gemini thường quá tải (HTTP 503)
+  nên một lượt chạy có thể mất khoảng một phút để chuyển sang model dự phòng; đặt `GEMINI_MODEL` sang model ít bận hơn
+  để tránh phải chờ.
+- **Quyền riêng tư ở hạng miễn phí của Gemini.** Trang giá của Google ghi rằng dữ liệu gửi lên ở hạng miễn phí có thể
+  được dùng để cải thiện sản phẩm của Google. Chỉ dùng hạng miễn phí với dữ liệu giả lập hoặc dữ liệu thử nghiệm đã có
+  sự đồng ý. Với dữ liệu khách hàng thật, dùng hạng trả phí hoặc Claude.
+- **Guardrail dựa trên luật.** Danh sách từ và quy tắc có thể bỏ sót kiểu bán hàng diễn đạt vòng vo hay những khẳng
+  định tinh tế, và phần kiểm tra thực thể chỉ bắt số và từ viết hoa. Hãy xem `evidence.json` trước khi gửi tin.
+- **Chế độ template kém tự nhiên hơn LLM.** Tin nhắn có căn cứ đầy đủ nhưng theo một bộ mẫu câu cố định. Khi có key
+  Gemini hoặc Claude, mô hình viết tin nhắn và cùng bộ guardrail kiểm tra.
+- **Giả định tinh tế vẫn có thể lọt qua.** Trong một lượt chạy Gemini thật, tin nhắn buổi tối chúc khách một buổi tối
+  "bên giai điệu ukulele quen thuộc", ngầm giả định tối nay khách sẽ chơi đàn. Bộ luật bắt được các mẫu rõ ràng
+  ("chắc hẳn", "tối nay bạn…", "mệt mỏi") nhưng không bắt được mọi sắc thái. Hãy đọc lại tin nhắn trước khi gửi.
+- **Chưa có lịch gửi và chưa tự gửi tin.** `trigger_time: "20:00"` chỉ cho biết thời điểm nên gửi tin nhắn buổi tối.
+  Agent không tự gửi tin; nhân viên xem lại rồi gửi.
+- **Nhân khẩu học chỉ là ước lượng.** Dữ liệu tự khai báo được dùng trước. Nếu không có, mô hình đọc ảnh có thể ước
+  lượng giới tính và khoảng tuổi từ ảnh đại diện, chỉ khi ảnh có đúng một người, độ tin cậy về giới tính từ 0.7 trở
+  lên, khoảng tuổi rộng tối đa 15 năm với độ tin cậy từ 0.6 trở lên. Ước lượng được gắn nhãn `INFERENCE` và có thể sai;
+  nó không bao giờ được dùng làm chủ đề tin nhắn. Không có API key hoặc không có ảnh đại diện thì các trường này giữ
+  `UNKNOWN`.

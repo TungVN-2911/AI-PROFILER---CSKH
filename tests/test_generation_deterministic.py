@@ -167,7 +167,7 @@ def test_bug001_plain_quote_keeps_its_period():
     assert _tidy("sourdough”.") == "sourdough”."
 
 
-# --- Forms of address (CR-001, TASK-023) ----------------------------------------------------
+# --- Forms of address ---------------------------------------------------------------------------
 
 import re  # noqa: E402
 
@@ -230,7 +230,7 @@ def test_deterministic_never_quotes_brand_or_product_facts():
     assert "Dr.Bee" not in joined and "rụng tóc" not in joined and "dầu gội" not in joined
 
 
-# --- Emotional quality (CR-003, TASK-026) ---------------------------------------------------
+# --- Emotional quality --------------------------------------------------------------------------
 
 
 def test_work_hook_uses_relaxing_evening_wish():

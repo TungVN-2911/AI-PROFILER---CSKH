@@ -1,4 +1,4 @@
-"""Pipeline orchestration and the status / error matrix (architecture.md §2, §6; FR-004, FR-009, FR-014).
+"""Pipeline orchestration and the status / error matrix.
 
 Every path returns a strict-schema output, an evidence report and an exit code:
     0 = SUCCESS or an honest PARTIAL_OR_PRIVATE, 2 = invalid input / configuration, 1 = internal error.
@@ -153,7 +153,7 @@ def _run(
         note = " | ".join([gate.note, *details])
         return _partial(url.url, note, EXIT_OK, technical_limitations=limitations, **common)
 
-    # 5b. Brief §4 (CR-001): no collectable / readable public image → PARTIAL_OR_PRIVATE, never an invented scene.
+    # 5b. No collectable / readable public image → PARTIAL_OR_PRIVATE, never an invented scene.
     if not visual_available:
         reason = visual_context.removeprefix("NOT_AVAILABLE: ")
         note = (

@@ -1,4 +1,4 @@
-"""Visual context extraction (FR-007, architecture.md §5.1).
+"""Visual context extraction.
 
 Two paths:
 - Provided `alt_text` (a description supplied with the data): used as-is, no AI call. Ledger status FACT.
@@ -32,7 +32,7 @@ EXTENSION_TYPES = {".jpg": "image/jpeg", ".jpeg": "image/jpeg", ".png": "image/p
 SUPPORTED_TYPES = frozenset(EXTENSION_TYPES.values())
 HEDGE_PHRASES = ("appears to show", "appear to show", "có vẻ")
 
-# Perceived demographic estimate (CR-001): accepted only from an avatar showing exactly one person.
+# Perceived demographic estimate: accepted only from an avatar showing exactly one person.
 GENDER_MIN_CONFIDENCE = 0.7
 AGE_MIN_CONFIDENCE = 0.6
 AGE_MAX_WIDTH = 15
@@ -93,7 +93,7 @@ def extract_visual_context(
     ledger = without_facts(ledger, rejected)
     kept_alt = [f for f in alt_facts if f.id not in rejected]
 
-    # One image for the vision model: needed for observations when no description is kept, and (CR-001) for the
+    # One image for the vision model: needed for observations when no description is kept, and for the
     # perceived demographic estimate when an avatar file/URL is available.
     candidates = _undescribed_images(raw) if not kept_alt else _loadable_images(raw)
     image = candidates[0] if candidates else None

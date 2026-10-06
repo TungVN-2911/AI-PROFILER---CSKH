@@ -1,10 +1,10 @@
-"""Final test run (FR-016, brief §25): run representative profiles through the real CLI and record results.
+"""Final test run: run representative profiles through the real CLI and record results.
 
 Usage:  python scripts/run_test_profiles.py
 Writes: test_results.json, and output.json / evidence.json from the public-rich run (repo root).
 Per-case files go to runs/test_run/<case>/ (git-ignored).
 
-Real profiles with consent (FR-020):
+Real profiles with consent:
         python scripts/run_test_profiles.py --profiles-dir runs/real [--results FILE] [--runs-dir DIR]
 Runs every *.json profile file in the folder (see scripts/new_profile.py) and writes runs/test_results_real.json.
 Committed artifacts (test_results.json, output.json, evidence.json) are never touched in this mode.
@@ -37,7 +37,7 @@ DATA_NOTE = (
     "TECHNICAL LIMITATION: các trường hợp profile dùng persona thử nghiệm giả lập (fixtures/profiles, 'synthetic': true), "
     "không phải dữ liệu Facebook thật. Facebook yêu cầu đăng nhập để xem gần như toàn bộ nội dung trang cá nhân và agent "
     "không đăng nhập hay vượt qua cơ chế kiểm soát truy cập; trường hợp 'live_facebook_attempt' ghi lại kết quả thực tế "
-    "của một request không đăng nhập. Để chạy trên profile thật (có sự đồng ý), xem README mục 'Running on real profiles'."
+    "của một request không đăng nhập. Để chạy trên profile thật (có sự đồng ý), xem README mục 5 'Chạy với trang cá nhân thật (có sự đồng ý)'."
 )
 
 CASES = [

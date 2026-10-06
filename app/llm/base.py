@@ -1,4 +1,4 @@
-"""Provider-neutral LLM interface. Application code depends only on this module (NFR-005)."""
+"""Provider-neutral LLM interface. Application code depends only on this module."""
 
 from __future__ import annotations
 
@@ -38,7 +38,7 @@ class VisionObservation(BaseModel):
 
 
 class VisionEstimate(BaseModel):
-    """Perceived impression of the single main person in a profile picture (CR-001). Never a fact."""
+    """Perceived impression of the single main person in a profile picture. Never a fact."""
 
     model_config = ConfigDict(extra="forbid")
 
