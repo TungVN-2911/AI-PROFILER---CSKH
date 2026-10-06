@@ -221,3 +221,6 @@ __marimo__/
 
 # Facebook Profiler Agent: outputs of runs on real profiles (never commit personal data)
 runs/
+
+# Local browser profile may contain cookies, sessions and account data.
+app/storage/
