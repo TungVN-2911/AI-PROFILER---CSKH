@@ -16,10 +16,10 @@ SETTINGS = load_settings(env={}, dotenv_path=None)
 # url, access state, output status, error_note prefix (PARTIAL only)
 EXPECTED = [
     ("https://www.facebook.com/fixture.minh.anh", "PUBLIC", "SUCCESS", None),
-    ("https://www.facebook.com/fixture.quoc.bao", "PUBLIC", "SUCCESS", None),
     ("https://www.facebook.com/fixture.khanh.linh", "PUBLIC", "SUCCESS", None),
     ("https://www.facebook.com/profile.php?id=100000000000042", "PUBLIC", "SUCCESS", None),
     ("https://www.facebook.com/fixture.thu.ha", "PARTIAL", "SUCCESS", None),
+    ("https://www.facebook.com/fixture.quoc.bao", "PUBLIC", "PARTIAL_OR_PRIVATE", "NO_IMAGE:"),
     ("https://www.facebook.com/fixture.name.only", "PUBLIC", "PARTIAL_OR_PRIVATE", "INSUFFICIENT_DATA:"),
     ("https://www.facebook.com/fixture.private.user", "PRIVATE", "PARTIAL_OR_PRIVATE", "PRIVATE_PROFILE:"),
     ("https://www.facebook.com/fixture.dead.link", "NOT_FOUND", "PARTIAL_OR_PRIVATE", "NOT_FOUND:"),
@@ -52,17 +52,18 @@ def test_fixture_maps_to_intended_status(url, state, status, prefix):
         assert result.output.ethical_rapport.sales_mention_check == "ZERO_SALES_CONFIRMED"
 
 
-def test_no_image_fixture_visual_not_available():
+def test_no_image_fixture_is_partial_per_brief():
+    # Brief §4: "bị khóa kín (Private) hoặc không thu thập được hình ảnh" → PARTIAL_OR_PRIVATE.
     out = run_pipeline("https://www.facebook.com/fixture.quoc.bao", PipelineOptions(mode="deterministic"), SETTINGS).output
-    assert out.profile_data.visual_context == "NOT_AVAILABLE: no public image provided"
-    assert len(out.ethical_rapport.dialogue_sequence_10) == 10
+    assert isinstance(out, PartialOutput)
+    assert out.error_note.startswith("NO_IMAGE: Không thu thập hoặc không đọc được hình ảnh công khai nào (không có ảnh công khai nào được cung cấp)")
 
 
 def test_declared_fixture_demographics_are_derived_and_labelled():
     out = run_pipeline("https://www.facebook.com/fixture.khanh.linh", PipelineOptions(mode="deterministic"), SETTINGS).output
     demo = out.profile_data.estimated_demographics
-    assert demo.gender.startswith("Female (self-declared gender field [F")
-    assert "derived from stated birth year 1996" in demo.estimated_age_range
+    assert demo.gender.startswith("Nữ (tự khai báo trên trang cá nhân [F")
+    assert "tính từ năm sinh tự khai báo 1996" in demo.estimated_age_range
     texts = " ".join(out.ethical_rapport.dialogue_sequence_10)
     assert "1996" not in texts and "she/her" not in texts
 

@@ -32,6 +32,7 @@ SENSITIVE_TERMS: dict[str, tuple[str, ...]] = {
         "mother", "father", "mom", "dad", "mum", "wife", "husband", "son", "daughter", "parent", "parents",
         "girlfriend", "boyfriend", "married", "spouse", "family", "mẹ", "bố", "ba của", "vợ", "chồng",
         "con trai", "con gái", "con của", "bố mẹ", "đã kết hôn", "người yêu", "gia đình",
+        "cả nhà", "các bé", "bé nhà", "con cái", "các con", "em bé", "con nhỏ",
     ),
     "gender_age_guess": (
         "man", "men", "woman", "women", "male", "female", "boy", "girl", "years old", "aged", "elderly",
@@ -53,8 +54,19 @@ def find_sensitive(text: str) -> list[tuple[str, str]]:
     """Return (category, matched term) pairs for every sensitive term found in `text`."""
     hits: list[tuple[str, str]] = []
     for category, pattern in _SENSITIVE_PATTERNS.items():
-        hits.extend((category, m.group(0)) for m in pattern.finditer(text))
+        for m in pattern.finditer(text):
+            # BUG-003: "người yêu chạy bộ / thích / cái đẹp …" means "a person who loves …". It means "a lover" only
+            # at the end of a phrase or before possessive / relationship words ("người yêu của bạn", "người yêu cũ").
+            if m.group(0).casefold() == "người yêu" and not _LOVER_CONTEXT.match(text, m.end()):
+                continue
+            hits.append((category, m.group(0)))
     return hits
+
+
+_LOVER_CONTEXT = re.compile(
+    r"\s*(?:$|[.,!?;:…)\]\"”])|\s+(?:của|cũ|mới|mình|tôi|tớ|em|anh|chị|bạn|ấy|đó|này|kia|sắp cưới)(?!\w)",
+    re.IGNORECASE,
+)
 
 
 # --- Zero-sales (C-005) ---------------------------------------------------------------------
@@ -77,7 +89,8 @@ SALES_TERMS: tuple[str, ...] = (
 )
 
 PRICE_PATTERN = re.compile(
-    r"(?:\d[\d.,]*\s*(?:k(?![a-zà-ỹ])|đ|₫|vnd|vnđ|nghìn|ngàn|triệu|tr(?![a-zà-ỹ])|củ|usd|\$|%))"
+    # BUG-003: "đ" / "củ" are units only when no letter follows ("thứ 3 đã", "3 củ khoai" are not prices).
+    r"(?:\d[\d.,]*\s*(?:k(?![a-zà-ỹ])|đ(?![a-zà-ỹ])|₫|vnd|vnđ|nghìn|ngàn|triệu|tr(?![a-zà-ỹ])|củ(?!\s*[a-zà-ỹ])|usd|\$|%))"
     r"|(?:[$€£]\s*\d)",
     re.IGNORECASE,
 )
@@ -120,3 +133,47 @@ def find_sales_terms(text: str) -> list[str]:
 
 def find_presumptions(text: str) -> list[str]:
     return [m.group(0) for p in PRESUMPTION_PATTERNS for m in p.finditer(text)]
+
+
+# --- Brand & product domain (CR-002, original brief §2) -------------------------------------
+# The rapport sequence must never name the brand or steer toward what it sells. Edit these lists to reuse the
+# agent for another brand.
+BRAND_PATTERN = re.compile(
+    r"(?<!\w)(?:d\s*[.\-_]?\s*r\s*[.\-_]?\s*b\s*e\s*e|doctor\s*bee|bác\s*sĩ\s*bee)(?!\w)",
+    re.IGNORECASE,
+)
+
+# Hair/scalp problems and hair-care products: never allowed, even when the customer mentions them.
+PRODUCT_TOPIC_HARD: tuple[str, ...] = (
+    # vi
+    "rụng tóc", "tóc rụng", "gãy rụng", "mọc tóc", "kích mọc tóc", "kích thích mọc tóc", "tóc thưa", "tóc mỏng",
+    "tóc yếu", "tóc gãy", "tóc khô xơ", "hói", "hói đầu", "nang tóc", "chân tóc", "da đầu", "gàu", "nấm da đầu",
+    "dầu gội", "dầu xả", "gội đầu", "serum", "tinh dầu bưởi", "xịt mọc tóc", "xịt dưỡng tóc", "dưỡng tóc",
+    "phục hồi tóc", "phục hồi nang tóc", "ủ tóc", "hấp tóc", "chăm sóc tóc", "sản phẩm tóc",
+    # en
+    "hair loss", "hair fall", "hair growth", "thinning hair", "bald", "balding", "scalp", "dandruff", "follicle",
+    "follicles", "shampoo", "conditioner", "hair serum", "hair care", "haircare",
+)
+
+# Generic beauty / pharma words: allowed only when the customer wrote them in a cited fact (e.g. works as a pharmacist).
+PRODUCT_TOPIC_SOFT: tuple[str, ...] = (
+    "tóc", "mái tóc", "kiểu tóc", "làm đẹp", "chăm sóc da", "skincare", "mỹ phẩm", "dược mỹ phẩm", "dược phẩm",
+    "dược sĩ", "điều trị", "chữa trị", "trị liệu", "cosmetic", "cosmetics", "beauty", "pharmacist",
+)
+
+_PRODUCT_HARD_PATTERN = _compile(PRODUCT_TOPIC_HARD)
+_PRODUCT_SOFT_PATTERN = _compile(PRODUCT_TOPIC_SOFT)
+
+
+def find_brand_mentions(text: str) -> list[str]:
+    return _find_terms(BRAND_PATTERN, text)
+
+
+def find_product_terms(text: str) -> tuple[list[str], list[str]]:
+    """(hard terms, soft terms) found in `text`."""
+    return _find_terms(_PRODUCT_HARD_PATTERN, text), _find_terms(_PRODUCT_SOFT_PATTERN, text)
+
+
+def has_blocked_topic(text: str) -> bool:
+    """True when `text` names the brand or a hard product-domain term (unusable in any message)."""
+    return bool(find_brand_mentions(text) or find_product_terms(text)[0])

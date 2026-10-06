@@ -19,7 +19,7 @@ import httpx
 from app.config import PROJECT_ROOT
 from app.ledger import append_fact, without_facts
 from app.lexicons import find_sensitive
-from app.llm.base import LLMClient, LLMError
+from app.llm.base import LLMClient, LLMError, VisionEstimate
 from app.models import EpistemicStatus, FactLedger, ProfileImage, RawProfile
 
 log = logging.getLogger(__name__)
@@ -32,17 +32,31 @@ EXTENSION_TYPES = {".jpg": "image/jpeg", ".jpeg": "image/jpeg", ".png": "image/p
 SUPPORTED_TYPES = frozenset(EXTENSION_TYPES.values())
 HEDGE_PHRASES = ("appears to show", "appear to show", "có vẻ")
 
-NO_IMAGE = "NOT_AVAILABLE: no public image provided"
+# Perceived demographic estimate (CR-001): accepted only from an avatar showing exactly one person.
+GENDER_MIN_CONFIDENCE = 0.7
+AGE_MIN_CONFIDENCE = 0.6
+AGE_MAX_WIDTH = 15
+AGE_BOUNDS = (13, 90)
+
+NO_IMAGE = "NOT_AVAILABLE: không có ảnh công khai nào được cung cấp"
+IMAGE_KIND_VI = {"avatar": "ảnh đại diện", "cover": "ảnh bìa", "photo": "ảnh công khai"}
 
 VISION_INSTRUCTIONS = """You describe a public social-media profile image for a customer-care profile.
 Rules:
 - Describe ONLY concrete things that are visible: objects, activities, setting, clothing style, text visible in the image.
-- Every observation MUST start with "appears to show".
+- Write every observation in Vietnamese, starting with "Ảnh có vẻ cho thấy".
 - Refer to any person only as "a person" or "people". Do NOT state or guess gender, age, ethnicity, religion,
   health, body shape, sexual orientation, political views, relationships or family roles (e.g. never "mother", "couple").
 - Do NOT guess the person's job, income, personality or life situation.
 - Give at most 5 observations, each with a confidence between 0 and 1. Omit anything you are unsure about.
-- If the image is blank, unreadable, a logo/default avatar, or shows nothing describable, set image_usable to false."""
+- If the image is blank, unreadable, a logo/default avatar, or shows nothing describable, set image_usable to false.
+
+Separate field "estimate" (never mention any of this in the observations):
+- Set single_person_visible to true only if exactly one person is clearly visible as the main subject.
+- perceived_gender: the gender presentation as it appears ("female", "male"), or "unclear" when unsure; give a confidence.
+- age_min / age_max: a rough apparent age range of that person (at most 15 years wide) with a confidence; null when unsure.
+- These are rough perceived impressions used only to choose a polite form of address. They are not facts.
+- Never infer ethnicity, religion, health, sexual orientation, political views, relationships or family roles."""
 
 
 @dataclass(frozen=True)
@@ -51,6 +65,12 @@ class VisualContextResult:
     ledger: FactLedger
     fact_ids: list[str] = field(default_factory=list)
     notes: list[str] = field(default_factory=list)
+    estimate_fact_ids: list[str] = field(default_factory=list)
+
+    @property
+    def available(self) -> bool:
+        """True when a public image yielded a usable description (provided or accepted vision observations)."""
+        return bool(self.fact_ids)
 
 
 def extract_visual_context(
@@ -64,57 +84,69 @@ def extract_visual_context(
     if raw is None or not raw.images:
         return VisualContextResult(NO_IMAGE, ledger)
 
-    # Path 1: provided alt text (already in the ledger as visual_observation FACTs).
+    # Provided alt text (already in the ledger as visual_observation FACTs), screened for sensitive attributes.
+    notes: list[str] = []
     alt_facts = [f for f in ledger.facts if f.category == "visual_observation" and f.source.endswith(".alt_text")]
-    if alt_facts:
-        notes: list[str] = []
-        rejected = {f.id for f in alt_facts if find_sensitive(f.statement)}
-        for fid in sorted(rejected):
-            notes.append(f"{fid}: provided image description removed (sensitive attribute).")
-        ledger = without_facts(ledger, rejected)
-        kept = [f for f in alt_facts if f.id not in rejected]
-        if kept:
-            text = "; ".join(f.statement for f in kept)
-            return VisualContextResult(
-                f"PROVIDED IMAGE DESCRIPTION: {text}", ledger, [f.id for f in kept], notes
-            )
-        if not _undescribed_images(raw):
-            return VisualContextResult(
-                "NOT_AVAILABLE: provided image description failed the sensitive-attribute check", ledger, [], notes
-            )
+    rejected = {f.id for f in alt_facts if find_sensitive(f.statement)}
+    for fid in sorted(rejected):
+        notes.append(f"{fid}: đã loại mô tả ảnh được cung cấp (chứa thuộc tính nhạy cảm).")
+    ledger = without_facts(ledger, rejected)
+    kept_alt = [f for f in alt_facts if f.id not in rejected]
 
-    # Path 2: describe one image with the vision model.
-    candidates = _undescribed_images(raw)
-    if not candidates:
-        return VisualContextResult(NO_IMAGE, ledger)
-    image = candidates[0]
-    if llm is None:
+    # One image for the vision model: needed for observations when no description is kept, and (CR-001) for the
+    # perceived demographic estimate when an avatar file/URL is available.
+    candidates = _undescribed_images(raw) if not kept_alt else _loadable_images(raw)
+    image = candidates[0] if candidates else None
+    vision = None
+    vision_error: str | None = None
+    if image is not None and llm is not None:
+        try:
+            data, media_type = _load_image(image, base_dir, transport)
+            vision = llm.describe_image(image_bytes=data, media_type=media_type, instructions=VISION_INSTRUCTIONS)
+        except _ImageError as exc:
+            vision_error = str(exc)
+        except LLMError as exc:
+            vision_error = f"phân tích ảnh thất bại ({exc.kind})"
+
+    estimate_ids: list[str] = []
+    if vision is not None and vision.image_usable and vision.estimate is not None:
+        ledger, estimate_ids, estimate_notes = _apply_estimate(ledger, vision.estimate, image.kind)
+        notes += estimate_notes
+
+    if kept_alt:
+        if vision_error:
+            notes.append(f"bỏ qua ước lượng từ ảnh: {vision_error}")
+        text = "; ".join(f.statement for f in kept_alt)
         return VisualContextResult(
-            "NOT_AVAILABLE: a public image exists but no vision model is configured (deterministic mode)", ledger
+            f"MÔ TẢ ẢNH (từ dữ liệu được cung cấp): {text}", ledger, [f.id for f in kept_alt], notes, estimate_ids
         )
 
-    try:
-        data, media_type = _load_image(image, base_dir, transport)
-    except _ImageError as exc:
-        return VisualContextResult(f"NOT_AVAILABLE: {exc}", ledger)
+    if image is None:
+        if rejected:
+            return VisualContextResult(
+                "NOT_AVAILABLE: mô tả ảnh được cung cấp chứa thuộc tính nhạy cảm nên bị loại", ledger, [], notes
+            )
+        return VisualContextResult(NO_IMAGE, ledger, [], notes)
+    if llm is None:
+        return VisualContextResult(
+            "NOT_AVAILABLE: có ảnh công khai nhưng chưa cấu hình mô hình đọc ảnh (chế độ không dùng AI)", ledger, [], notes
+        )
+    if vision_error:
+        return VisualContextResult(f"NOT_AVAILABLE: {vision_error}", ledger, [], notes)
+    if not vision.image_usable:
+        return VisualContextResult("NOT_AVAILABLE: ảnh không có nội dung mô tả được", ledger, [], notes)
 
-    try:
-        result = llm.describe_image(image_bytes=data, media_type=media_type, instructions=VISION_INSTRUCTIONS)
-    except LLMError as exc:
-        return VisualContextResult(f"NOT_AVAILABLE: vision analysis failed ({exc.kind})", ledger)
-    if not result.image_usable:
-        return VisualContextResult("NOT_AVAILABLE: the image shows nothing describable", ledger)
-
-    notes = []
     accepted: list[tuple[str, float]] = []
-    for obs in result.observations[:MAX_OBSERVATIONS]:
+    for obs in vision.observations[:MAX_OBSERVATIONS]:
         reason = _rejection_reason(obs.text, obs.confidence)
         if reason:
-            notes.append(f"vision observation rejected ({reason}): {obs.text!r}")
+            notes.append(f"loại quan sát ảnh ({reason}): {obs.text!r}")
         else:
             accepted.append((obs.text.strip(), obs.confidence))
     if not accepted:
-        return VisualContextResult("NOT_AVAILABLE: no image observation passed validation", ledger, [], notes)
+        return VisualContextResult(
+            "NOT_AVAILABLE: không có quan sát ảnh nào qua được kiểm tra", ledger, [], notes, estimate_ids
+        )
 
     fact_ids = []
     for text, confidence in accepted:
@@ -129,7 +161,52 @@ def extract_visual_context(
         fact_ids.append(fact.id)
     joined = "; ".join(text for text, _ in accepted)
     return VisualContextResult(
-        f"AI VISUAL OBSERVATION ({image.kind} image, model-generated, unverified): {joined}", ledger, fact_ids, notes
+        f"QUAN SÁT ẢNH BẰNG AI ({IMAGE_KIND_VI.get(image.kind, image.kind)}; do mô hình tạo, chưa kiểm chứng): {joined}",
+        ledger,
+        fact_ids,
+        notes,
+        estimate_ids,
+    )
+
+
+def _apply_estimate(
+    ledger: FactLedger, estimate: VisionEstimate, kind: str
+) -> tuple[FactLedger, list[str], list[str]]:
+    """Turn a perceived estimate into INFERENCE ledger entries when it clears every threshold."""
+    notes: list[str] = []
+    if kind != "avatar":
+        return ledger, [], [f"bỏ qua ước lượng: lấy từ {IMAGE_KIND_VI.get(kind, kind)}, không phải ảnh đại diện"]
+    if not estimate.single_person_visible:
+        return ledger, [], ["bỏ qua ước lượng: ảnh không có đúng một người nhìn rõ"]
+    source = f"vision:{kind}:estimate"
+    ids: list[str] = []
+    if estimate.perceived_gender != "unclear" and estimate.gender_confidence >= GENDER_MIN_CONFIDENCE:
+        ledger, fact = append_fact(ledger, "perceived_gender", estimate.perceived_gender, source,
+                                   EpistemicStatus.INFERENCE, estimate.gender_confidence)
+        ids.append(fact.id)
+    else:
+        notes.append(f"bỏ qua ước lượng giới tính ({estimate.perceived_gender}, độ tin cậy {estimate.gender_confidence:.2f})")
+    low, high = estimate.age_min, estimate.age_max
+    if (
+        low is not None
+        and high is not None
+        and AGE_BOUNDS[0] <= low <= high <= AGE_BOUNDS[1]
+        and high - low <= AGE_MAX_WIDTH
+        and estimate.age_confidence >= AGE_MIN_CONFIDENCE
+    ):
+        ledger, fact = append_fact(ledger, "perceived_age", f"{low}-{high}", source,
+                                   EpistemicStatus.INFERENCE, estimate.age_confidence)
+        ids.append(fact.id)
+    else:
+        notes.append(f"bỏ qua ước lượng độ tuổi ({low}-{high}, độ tin cậy {estimate.age_confidence:.2f})")
+    return ledger, ids, notes
+
+
+def _loadable_images(raw: RawProfile) -> list[ProfileImage]:
+    """Images with a file or URL, avatar first, local files first."""
+    return sorted(
+        (img for img in raw.images if img.path or img.url),
+        key=lambda img: (0 if img.kind == "avatar" else 1, 0 if img.path else 1),
     )
 
 
@@ -141,12 +218,12 @@ def _undescribed_images(raw: RawProfile) -> list[ProfileImage]:
 
 def _rejection_reason(text: str, confidence: float) -> str | None:
     if confidence < MIN_CONFIDENCE:
-        return f"confidence {confidence:.2f} < {MIN_CONFIDENCE}"
+        return f"độ tin cậy {confidence:.2f} < {MIN_CONFIDENCE}"
     hits = find_sensitive(text)
     if hits:
-        return "sensitive attribute: " + ", ".join(f"{cat}={term}" for cat, term in hits)
+        return "thuộc tính nhạy cảm: " + ", ".join(f"{cat}={term}" for cat, term in hits)
     if not any(p in text.lower() for p in HEDGE_PHRASES):
-        return "not phrased as an observation ('appears to show ...')"
+        return "không viết dưới dạng quan sát ('có vẻ cho thấy ...')"
     return None
 
 
@@ -160,13 +237,13 @@ def _load_image(image: ProfileImage, base_dir: Path, transport: httpx.BaseTransp
         path = path if path.is_absolute() else base_dir / path
         media_type = EXTENSION_TYPES.get(path.suffix.lower())
         if media_type is None:
-            raise _ImageError(f"unsupported image file type '{path.suffix}'")
+            raise _ImageError(f"định dạng file ảnh '{path.suffix}' không được hỗ trợ")
         try:
             data = path.read_bytes()
         except OSError:
-            raise _ImageError("the provided image file could not be read") from None
+            raise _ImageError("không đọc được file ảnh được cung cấp") from None
         if not data or len(data) > MAX_IMAGE_BYTES:
-            raise _ImageError("the provided image file is empty or too large")
+            raise _ImageError("file ảnh được cung cấp trống hoặc quá lớn")
         return data, media_type
 
     # A single GET of a URL that was supplied with the data (or og:image); no crawling, no auth.
@@ -174,13 +251,13 @@ def _load_image(image: ProfileImage, base_dir: Path, transport: httpx.BaseTransp
         with httpx.Client(transport=transport, timeout=15.0, follow_redirects=False, headers={"User-Agent": USER_AGENT}) as client:
             response = client.get(image.url)
     except httpx.HTTPError as exc:
-        raise _ImageError(f"the image URL could not be fetched ({type(exc).__name__})") from None
+        raise _ImageError(f"không tải được ảnh từ URL ({type(exc).__name__})") from None
     if response.status_code != 200:
-        raise _ImageError(f"the image URL returned HTTP {response.status_code}")
+        raise _ImageError(f"URL ảnh trả về HTTP {response.status_code}")
     media_type = response.headers.get("content-type", "").split(";")[0].strip().lower()
     if media_type not in SUPPORTED_TYPES:
-        raise _ImageError(f"the image URL returned unsupported content type '{media_type or 'unknown'}'")
+        raise _ImageError(f"URL ảnh trả về kiểu nội dung không hỗ trợ '{media_type or 'không rõ'}'")
     data = response.content
     if not data or len(data) > MAX_IMAGE_BYTES:
-        raise _ImageError("the downloaded image is empty or too large")
+        raise _ImageError("ảnh tải về trống hoặc quá lớn")
     return data, media_type

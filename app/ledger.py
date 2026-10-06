@@ -137,20 +137,20 @@ class GateResult:
 
 
 _BLOCKED_STATES: dict[AccessState, tuple[str, str]] = {
-    AccessState.INVALID_INPUT: ("INVALID_INPUT", "INVALID_INPUT: the input is not a usable Facebook profile URL."),
+    AccessState.INVALID_INPUT: ("INVALID_INPUT", "INVALID_INPUT: Dữ liệu đầu vào không phải URL trang Facebook cá nhân hợp lệ."),
     AccessState.NO_ACCESSIBLE_DATA: ("NO_ACCESSIBLE_DATA", NO_DATA_LIMITATION),
     AccessState.LOGIN_REQUIRED: ("LOGIN_REQUIRED", LOGIN_LIMITATION),
     AccessState.PRIVATE: (
         "PRIVATE_PROFILE",
-        "PRIVATE_PROFILE: the profile is private; no public content is available to analyse.",
+        "PRIVATE_PROFILE: Trang cá nhân bị khóa riêng tư, không có nội dung công khai để phân tích.",
     ),
     AccessState.NOT_FOUND: (
         "NOT_FOUND",
-        "NOT_FOUND: the profile does not exist or is no longer available (dead link).",
+        "NOT_FOUND: Trang cá nhân không tồn tại hoặc không còn truy cập được (link chết).",
     ),
     AccessState.UNREACHABLE: (
         "UNREACHABLE",
-        "UNREACHABLE: the profile could not be reached; no data was collected.",
+        "UNREACHABLE: Không kết nối được tới trang cá nhân, chưa thu thập được dữ liệu nào.",
     ),
 }
 
@@ -165,7 +165,7 @@ def evaluate_sufficiency(access_state: AccessState, ledger: FactLedger, settings
         return GateResult(
             ok=False,
             reason_code="INSUFFICIENT_DATA",
-            note="INSUFFICIENT_DATA: the profile's display name is not available.",
+            note="INSUFFICIENT_DATA: Không đọc được tên hiển thị của trang cá nhân.",
         )
 
     usable = ledger.usable_facts()
@@ -174,8 +174,8 @@ def evaluate_sufficiency(access_state: AccessState, ledger: FactLedger, settings
             ok=False,
             reason_code="INSUFFICIENT_DATA",
             note=(
-                f"INSUFFICIENT_DATA: only {len(usable)} usable public fact(s) found besides the name "
-                f"(minimum {settings.min_grounding_facts}); rapport messages would have to be invented."
+                f"INSUFFICIENT_DATA: Chỉ thu thập được {len(usable)} thông tin công khai ngoài tên "
+                f"(cần tối thiểu {settings.min_grounding_facts}); không đủ dữ liệu thật để viết tin nhắn mà không bịa."
             ),
         )
     return GateResult(ok=True)

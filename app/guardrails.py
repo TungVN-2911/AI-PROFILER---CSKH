@@ -19,7 +19,9 @@ from app.lexicons import (
     PHONE_PATTERN,
     PRICE_PATTERN,
     URL_PATTERN,
+    find_brand_mentions,
     find_presumptions,
+    find_product_terms,
     find_sales_terms,
     find_sensitive,
 )
@@ -27,6 +29,9 @@ from app.models import NON_GROUNDING_CATEGORIES, EpistemicStatus, Fact, FactLedg
 from app.schema import MAX_MESSAGES, MIN_MESSAGES
 
 MAX_MESSAGE_CHARS = 400
+# CR-003 (FR-019): work-related evening phrases are fine when a work fact is cited (brief: "thư giãn sau giờ làm việc").
+WORK_PRESUMPTIONS = frozenset({"sau giờ làm", "tan làm", "đi làm về", "sau một ngày", "áp lực"})
+_QUESTION_SAFE_PRESUMPTION = re.compile(r"^tối nay \w+ (?:có|định)$")
 ALWAYS_ALLOWED_WORDS = frozenset({"facebook"})
 
 
@@ -67,8 +72,9 @@ class Violation:
 
 # --- Text-level checks ---------------------------------------------------------------------
 
+# Claims about the customer. "em" is excluded: it is the agent's own pronoun when addressing "chị"/"anh" (FR-017).
 _NEUTRAL_CLAIM = re.compile(
-    r"\b(?:bạn|anh|chị|em)\s+(?:là|thích|yêu|đang|hay|thường|có vẻ|rất|cũng|vừa|đã)\b"
+    r"\b(?:bạn|anh|chị)\s+(?:là|thích|yêu|đang|hay|thường|có vẻ|rất|cũng|vừa|đã)\b"
     r"|\byou(?:'re| are| like| love| seem| always| usually| just| have)\b",
     re.IGNORECASE,
 )
@@ -89,6 +95,15 @@ def check_text(text: str, location: str, cited: list[Fact] | None = None) -> lis
     for term in find_sales_terms(text):
         if not _allowed_in_facts(term, cited):
             out.append(Violation("SALES_TERM", location, f"commercial term '{term}'"))
+    # CR-002: the brand and its core product domain are never allowed, even when a cited fact mentions them.
+    for brand in find_brand_mentions(text):
+        out.append(Violation("BRAND_MENTION", location, f"brand name '{brand}' must never appear"))
+    hard, soft = find_product_terms(text)
+    for term in hard:
+        out.append(Violation("PRODUCT_TOPIC", location, f"product-domain topic '{term}' must never appear"))
+    for term in soft:
+        if not _allowed_in_facts(term, cited):
+            out.append(Violation("PRODUCT_TOPIC", location, f"beauty/pharma term '{term}' is only allowed when the customer wrote it"))
     for pattern, code in (
         (PRICE_PATTERN, "PRICE"),
         (URL_PATTERN, "URL"),
@@ -98,13 +113,26 @@ def check_text(text: str, location: str, cited: list[Fact] | None = None) -> lis
     ):
         for m in pattern.finditer(text):
             out.append(Violation(code, location, f"'{m.group(0)}' is not allowed in rapport messages"))
-    for phrase in find_presumptions(text):
-        # Quoting the customer's own words (e.g. a post saying "mệt mỏi") is grounded, not presumed.
-        if not _allowed_in_facts(phrase, cited):
+    cites_work = any(f.category == "work" for f in cited)
+    for sentence in _SENTENCE_SPLIT.split(text):
+        is_question = sentence.rstrip().endswith("?")
+        for phrase in find_presumptions(sentence):
+            p = phrase.casefold()
+            # Quoting the customer's own words (e.g. a post saying "mệt mỏi") is grounded, not presumed.
+            if _allowed_in_facts(phrase, cited):
+                continue
+            if cites_work and (p in WORK_PRESUMPTIONS or p.endswith("đang làm")):
+                continue
+            # BUG-003: asking "Tối nay bạn có định … không?" is a question, not a presumption.
+            if is_question and _QUESTION_SAFE_PRESUMPTION.match(p):
+                continue
             out.append(Violation("PRESUMPTION", location, f"presumes the customer's situation: '{phrase}'"))
+    # Family topics are fine when a cited fact is itself about family (FR-019); other categories need the exact term.
+    cited_categories = {category for f in cited for category, _ in find_sensitive(f.statement)}
     for category, term in find_sensitive(text):
-        if not _allowed_in_facts(term, cited):
-            out.append(Violation("SENSITIVE_TERM", location, f"sensitive attribute ({category}): '{term}'"))
+        if _allowed_in_facts(term, cited) or (category == "family_relationship" and category in cited_categories):
+            continue
+        out.append(Violation("SENSITIVE_TERM", location, f"sensitive attribute ({category}): '{term}'"))
     if len(text) > MAX_MESSAGE_CHARS:
         out.append(Violation("TOO_LONG", location, f"{len(text)} characters (max {MAX_MESSAGE_CHARS})"))
     return out
@@ -112,7 +140,8 @@ def check_text(text: str, location: str, cited: list[Fact] | None = None) -> lis
 
 def check_entities(text: str, location: str, cited: list[Fact], name: Fact | None) -> list[Violation]:
     """Heuristic: numbers and mid-sentence capitalised words must come from cited facts (or the name)."""
-    allowed_text = " ".join(f.statement for f in cited).casefold()
+    # Sources carry e.g. a post's date ("public_posts[0]@2026-09-28"), so citing that date is grounded.
+    allowed_text = " ".join(f"{f.statement} {f.source}" for f in cited).casefold()
     allowed_words = {w.casefold() for f in cited for w in _WORD.findall(f.statement)} | ALWAYS_ALLOWED_WORDS
     if name:
         allowed_words |= {w.casefold() for w in _WORD.findall(name.statement)}
@@ -141,7 +170,9 @@ def _resolve(ids: list[str], ledger: FactLedger, location: str) -> tuple[list[Fa
         fact = ledger.get(fid)
         if fact is None:
             out.append(Violation("UNKNOWN_FACT_ID", location, f"cites {fid}, which does not exist"))
-        elif fact.epistemic_status is not EpistemicStatus.FACT:
+        elif fact.epistemic_status is not EpistemicStatus.FACT and fact.category != "visual_observation":
+            # AI vision observations (INFERENCE) may ground a tentative remark about the photo (FR-019);
+            # perceived demographic estimates never may.
             out.append(Violation("NON_FACT_CITATION", location, f"cites {fid}, which is an {fact.epistemic_status.value}"))
         elif fact.category in NON_GROUNDING_CATEGORIES - {"name"}:
             out.append(Violation("DEMOGRAPHIC_CITATION", location, f"cites {fid} ({fact.category}), which must not be a message topic"))

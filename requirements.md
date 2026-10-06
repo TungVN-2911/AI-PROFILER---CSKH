@@ -45,7 +45,7 @@ Output: strict JSON on **stdout** and in **output.json**.
 | A-04 | Unauthenticated requests to facebook.com usually return a login wall; therefore **pre-extracted profile data (JSON) is the primary reliable data path**, and live fetching is a best-effort, opt-in adapter that only reads public HTML meta tags. |
 | A-05 | The 20:00 trigger is represented in the output (`trigger_time: "20:00"`); the CLI does **not** run a long-lived scheduler/daemon. |
 | A-06 | `dialogue_sequence_10` is an **array of strings** (messages). Grounding metadata is written to a separate `evidence.json` so the main schema stays exactly as specified. |
-| A-07 | Demographic fields are filled only from self-declared/explicit data; otherwise `"UNKNOWN"`. Appearance-based gender/age guessing is **not** performed by default. |
+| A-07 | ~~Demographic fields only from self-declared data.~~ **Revised by CR-001:** self-declared data first; otherwise a labelled `INFERENCE` perceived from a public image (gender presentation, apparent age range) when confident; otherwise `"UNKNOWN"`. |
 | A-08 | Test profiles committed to the repo are **synthetic personas**, not real people. |
 
 ### 2.3 Technical Risks
@@ -102,16 +102,17 @@ Missing fields SHALL be recorded as `UNKNOWN`, never filled.
 If a public image (avatar/cover/public photo) is available, the system SHALL describe **only visibly observable, non-identity** elements ("image appears to show…").
 It SHALL NOT infer ethnicity, religion, health, sexual orientation, political views, relationships or family roles.
 No image / unreadable image → `visual_context: "NOT_AVAILABLE: <reason>"`.
-**Acceptance:** "no image" fixture → `NOT_AVAILABLE`; a vision output containing a forbidden attribute is rejected by the validator.
+**CR-001 (brief §4: "bị khóa kín (Private) hoặc không thu thập được hình ảnh"):** when no public image can be collected or read — no image, unreadable file/URL, image without provided description and no vision model, vision failure, or every observation rejected — the run SHALL end with `status: PARTIAL_OR_PRIVATE` and an `error_note` starting `NO_IMAGE:`.
+**Acceptance:** "no image" fixture → `PARTIAL_OR_PRIVATE` / `NO_IMAGE:`; a vision output containing a forbidden attribute is rejected by the validator.
 
 ### FR-008 — Profile intelligence
 The system SHALL produce `customer_name`, `visual_context`, `estimated_demographics.{gender, estimated_age_range, apparent_lifestyle}`.
-- `gender`, `estimated_age_range`: only from explicit/self-declared data (e.g. stated pronouns, stated birth year); else `"UNKNOWN"`.
+- `gender`, `estimated_age_range` (**CR-001**): (1) self-declared data (gender field, pronouns, stated birth year); else (2) a perceived estimate from a public image analysed by the vision model, only when exactly one person is clearly visible — gender confidence ≥ 0.7, age range ≤ 15 years within 13–90 and confidence ≥ 0.6 — written as `INFERENCE: … (perceived from <kind> image, confidence x.xx) [F#]`; else `"UNKNOWN"`. Never from names; never ethnicity, religion, health, orientation, politics or family role.
 - `apparent_lifestyle`: may be an INFERENCE, must be prefixed `INFERENCE:` and cite observed basis; else `"UNKNOWN"`.
-**Acceptance:** for a fixture without explicit gender/age, both fields are `"UNKNOWN"`; any lifestyle value is either `UNKNOWN` or starts with `INFERENCE:`.
+**Acceptance:** without self-declared data and without a confident image estimate, both fields are `"UNKNOWN"`; an image estimate is labelled `INFERENCE:` with confidence and fact id; any lifestyle value is either `UNKNOWN` or starts with `INFERENCE:`.
 
 ### FR-009 — Sufficiency gate (SUCCESS vs PARTIAL_OR_PRIVATE)
-`status = SUCCESS` only if: access state is `PUBLIC` or `PARTIAL`, `customer_name` is known, and there are ≥ `MIN_GROUNDING_FACTS` (default 2) usable non-name facts.
+`status = SUCCESS` only if: access state is `PUBLIC` or `PARTIAL`, `customer_name` is known, there are ≥ `MIN_GROUNDING_FACTS` (default 2) usable non-name facts, and (CR-001) a visual context could be extracted from a public image (FR-007).
 Otherwise `status = PARTIAL_OR_PRIVATE` with an explanatory `error_note`. Data SHALL never be invented to reach SUCCESS.
 **Acceptance:** fixture with name only → `PARTIAL_OR_PRIVATE`.
 
@@ -123,8 +124,9 @@ The system SHALL produce one `core_empathy_angle` grounded in ≥ 1 cited fact.
 The system SHALL generate 5–10 outbound messages (`dialogue_sequence_10`), target 10 when data allows, never fewer than 5 on SUCCESS.
 Each message is either (a) grounded — cites ≥ 1 fact ID and makes no claim beyond the cited facts, or (b) neutral — courtesy/open question with no factual claim about the person.
 Messages SHALL NOT contain: products, prices, discounts, promotions, purchase invitations, links, phone numbers, CTAs to buy/register/consult.
+**CR-002 (original brief §2: "không nhắc đến tên thương hiệu Dr.Bee"):** messages, hook and angle SHALL NOT mention the brand **Dr.Bee** in any spelling (`Dr.Bee`, `Dr. Bee`, `DrBee`, `dr bee`, `Bác sĩ Bee`…), nor the product domain: hair/scalp problems and hair-care products (`rụng tóc`, `da đầu`, `dầu gội`, `serum`, `hair loss`…) — not even when the customer's own data mentions them. Generic beauty/pharma words (`tóc`, `mỹ phẩm`, `dược sĩ`, `điều trị`…) are allowed only when they appear verbatim in a cited fact (e.g. the customer works as a pharmacist).
 `sales_mention_check = "ZERO_SALES_CONFIRMED"` only when the zero-sales validator passes; otherwise the output is regenerated or falls back — never emitted with a false confirmation.
-**Acceptance:** count in [5, 10]; zero-sales validator passes; all cited IDs exist.
+**Acceptance:** count in [5, 10]; zero-sales validator passes; all cited IDs exist; any brand spelling or hard product-domain term is rejected even when cited (CR-002).
 
 ### FR-012 — 20:00 Evening hook
 The system SHALL produce `evening_cadence_20pm.trigger_time = "20:00"` and one `evening_hook_message` grounded in ≥ 1 cited fact, without presuming the customer's current situation (e.g. "you must be tired after work" when nothing says so).
@@ -140,8 +142,24 @@ The system SHALL write `evidence.json` containing the fact ledger, access state,
 **Acceptance:** file exists after every run that reaches acquisition; every message in output.json has a grounding entry.
 
 ### FR-015 — Generation modes
-`auto` (default): use LLM if `ANTHROPIC_API_KEY` is configured, else deterministic. `llm`: require LLM (fail to PARTIAL with note if unavailable). `deterministic`: template-based generation from facts, no network calls to LLM.
+`auto` (default): use an LLM if a provider key is configured, else deterministic. **CR-004:** providers are Claude (`ANTHROPIC_API_KEY`) and Gemini (`GEMINI_API_KEY`); `LLM_PROVIDER=auto|anthropic|gemini` selects one (auto prefers Claude when both keys exist). `llm`: require LLM (fail to PARTIAL with note if unavailable). `deterministic`: template-based generation from facts, no network calls to LLM.
 **Acceptance:** with no API key, `--mode auto` produces a valid SUCCESS output for a rich fixture.
+
+### FR-017 — Forms of address (CR-001)
+Messages SHALL address the customer as **"chị"** (female) or **"anh"** (male), with the agent as **"em"**, when gender is self-declared (gender field, or pronouns she/her / he/him) or perceived from an image with confidence ≥ 0.7 (FR-008). Otherwise the neutral **"bạn"** / **"mình"** is used. The basis is recorded in evidence.json.
+**Acceptance:** self-declared female fixture → messages use "chị"/"em" and never "bạn"; unknown gender → "bạn"/"mình"; all drafts still pass the guardrails.
+
+### FR-018 — Vietnamese output text (CR-003)
+Every human-readable text in the output and evidence (`error_note`, `visual_context`, `estimated_demographics`, technical limitations) SHALL be Vietnamese, matching the brief's examples ("Nữ / Nam", "25 - 35 tuổi", "Trang cá nhân bị khóa riêng tư…"). Machine-readable status codes stay as fixed English prefixes (`INVALID_INPUT:`, `PRIVATE_PROFILE:`, `NOT_FOUND:`, `NO_IMAGE:`, `INSUFFICIENT_DATA:`, `UNREACHABLE:`, `INTERNAL_ERROR:`, `TECHNICAL LIMITATION:`, `NOT_AVAILABLE:`, `INFERENCE:`, `UNKNOWN`).
+**Acceptance:** every SUCCESS / PARTIAL output of the fixtures reads in Vietnamese after its code prefix.
+
+### FR-019 — Emotional quality (CR-003)
+Messages SHALL read as a warm, sincere friend, following the brief: honour the customer, empathise with their efforts, compliment their positive spirit, and open with a warm greeting that mentions the profile picture when an image description exists. Grounded family topics are allowed when a cited fact is itself about family; a work-related evening wish ("sau giờ làm") is allowed when a work fact is cited. AI vision observations (INFERENCE) may ground a tentative mention of the profile picture; perceived demographic estimates never may.
+**Acceptance:** template output contains an avatar-aware greeting and varied, empathetic phrasing; the brief's own hook examples pass the guardrails when supported by a cited fact and are still rejected without one.
+
+### FR-020 — Real-profile test runs (CR-003)
+The project SHALL provide tooling to run consented real profiles: a profile-data template generator and a batch run over a directory of profile files whose results stay in the git-ignored `runs/` folder unless the user chooses to publish them. No real data is collected by the agent itself.
+**Acceptance:** `scripts/new_profile.py` writes a valid template; `scripts/run_test_profiles.py --profiles-dir DIR` runs every file and writes `runs/test_results_real.json`.
 
 ### FR-016 — Test run artifact
 A script SHALL run ≥ 3 representative profiles and record results in `test_results.json`.
@@ -175,7 +193,7 @@ A script SHALL run ≥ 3 representative profiles and record results in `test_res
 | C-002 | No use of anyone's credentials/cookies/session tokens; no impersonated access. |
 | C-003 | No fabricated data; missing data → `UNKNOWN` / `NOT_AVAILABLE` / `PARTIAL_OR_PRIVATE`. |
 | C-004 | Never claim data was collected when it was not; technical limitations are reported verbatim. |
-| C-005 | ZERO SALES in rapport messages and evening hook. |
+| C-005 | ZERO SALES in rapport messages and evening hook, including no mention of the Dr.Bee brand or its product domain (CR-002). |
 | C-006 | Output schema exactly as specified in the brief. |
 | C-007 | No appearance-based inference of sensitive attributes (ethnicity, religion, health, orientation, politics, family role). |
 | C-008 | Deadline 24–48 h; scope prioritised per plan.md. |
@@ -210,8 +228,27 @@ A script SHALL run ≥ 3 representative profiles and record results in `test_res
 | FR-014 | TASK-014 |
 | FR-015 | TASK-008, TASK-012, TASK-014 |
 | FR-016 | TASK-018 |
+| FR-007, FR-009 (CR-001 no image) | TASK-021 |
+| FR-008 (CR-001 image estimate) | TASK-022 |
+| FR-017 | TASK-023 |
+| FR-011 (CR-002 brand / product domain) | TASK-024 |
+| FR-018 | TASK-025 |
+| FR-019 | TASK-026 |
+| FR-020 | TASK-027 |
+| FR-015 (CR-004 Gemini provider) | TASK-028 |
 | NFR-001, NFR-008 | TASK-015 |
 | NFR-002 | TASK-011, TASK-013, TASK-017 |
 | NFR-003 | TASK-019, TASK-020 |
 | NFR-004, NFR-006 | TASK-016, TASK-017 |
 | NFR-005 | TASK-008, TASK-005, TASK-006 |
+
+---
+
+## 8. Change Log
+
+| ID | Date | Source | Change |
+|---|---|---|---|
+| CR-001 | 2026-10-06 | Review against the original brief (`DE BAI TEST CHINH THUC … FACEBOOK PROFILER AGENT.md`), approved by the user (items 1, 2, 5) | FR-007/FR-009: no collectable image → `PARTIAL_OR_PRIVATE` (`NO_IMAGE:`). FR-008 / A-07: labelled perceived gender & age estimate from a public image. FR-017: "chị/anh – em" forms of address. |
+| CR-002 | 2026-10-06 | Original brief §2 ("không nhắc đến tên thương hiệu Dr.Bee"), approved by the user | FR-011 / C-005: block the Dr.Bee brand (absolute) and its product domain (hard terms absolute, generic terms only when self-declared in a cited fact). |
+| CR-003 | 2026-10-06 | User: "khắc phục những thiếu sót" (remaining gaps vs. the original brief) | FR-018 Vietnamese output text; FR-019 emotional quality (warmer templates, avatar greeting, grounded family / work themes, AI vision observations citable tentatively, LLM style guide); FR-020 tooling for consented real-profile runs. Live Claude verification and real data still require the user's API key and consented profiles. |
+| CR-004 | 2026-10-06 | User: Anthropic API needs billing; use another provider such as Gemini | FR-015: add a Gemini adapter (`google-genai`, default `gemini-3.8-flash`, free tier available) behind the existing `LLMClient` protocol; provider selection via `LLM_PROVIDER`. Note: Gemini free-tier content may be used by Google to improve its products — fine for synthetic fixtures, not for real customer data without consent / a paid tier. |

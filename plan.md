@@ -52,7 +52,7 @@ Operator reviews evidence.json, then sends messages manually (system never sends
 | AD-03 | Fact Ledger with IDs + mandatory citations from the LLM | Makes "zero hallucination" machine-checkable. | Trusting prompt instructions alone. |
 | AD-04 | Two AI calls: vision (optional) + one structured engagement call | Coherent tone, fewer calls, per-section validation still possible. | One call per section (3–4 calls, more cost/latency). |
 | AD-05 | Deterministic template generator always available | Runability without API key; guaranteed-safe fallback. | LLM-only (reviewer may have no key). |
-| AD-06 | Demographics from explicit data only; `UNKNOWN` otherwise | Accuracy + ethics; brief forbids guessing. | Vision-based gender/age estimation (see Decision D-3). |
+| AD-06 | Demographics: self-declared first, then a labelled perceived estimate from an image (CR-001), else `UNKNOWN` | The original brief asks for estimated demographics; labelling keeps facts and inferences apart. | Unlabelled guesses; estimates from names. |
 | AD-07 | Main output schema kept exact; provenance in separate `evidence.json` | Brief requires exact schema; reviewers still need traceability. | Extra keys in output.json. |
 | AD-08 | `dialogue_sequence_10` = outbound agent messages only, array of strings | Customer replies unknown → inventing them is hallucination. | Two-sided simulated dialogue. |
 | AD-09 | Invalid input reuses `PARTIAL_OR_PRIVATE` + `INVALID_INPUT:` note + exit code 2 | Brief defines only two statuses. | New `ERROR` status (see Decision D-5). |
@@ -148,8 +148,33 @@ Coverage targets from the brief §24 are mapped one-to-one to test files in task
 |---|---|---|
 | D-1 | Data access strategy | Provided data (file/fixture store) primary; live meta fetch **opt-in** (`--live`), never default. |
 | D-2 | Test data | 3+ **synthetic** fixture personas committed; real URLs only if you supply consenting profiles, outputs kept out of git. |
-| D-3 | Demographics policy | `gender`/`estimated_age_range` only from explicit self-declared data, else `UNKNOWN`; no appearance-based guessing. |
+| D-3 | Demographics policy | **Revised by CR-001 (approved 2026-10-06):** self-declared data first; else a perceived estimate from a public image labelled `INFERENCE` with confidence; else `UNKNOWN`. |
 | D-4 | Output extras | Exact schema in output.json; grounding/provenance in separate `evidence.json`; messages as array of strings. |
 | D-5 | Invalid input status | Reuse `PARTIAL_OR_PRIVATE` + `INVALID_INPUT:` note + exit code 2 (vs. adding a new `ERROR` status). |
-| D-6 | LLM provider & offline mode | Claude Opus 5.5 via adapter; deterministic template mode when no key (`--mode auto`). |
+| D-6 | LLM provider & offline mode | Claude Opus 5.5 via adapter; deterministic template mode when no key (`--mode auto`). **CR-004:** Gemini (`gemini-3.8-flash`) added as a second adapter because the Anthropic API needs billing. |
 | D-7 | Message language | Vietnamese generated messages; English docs. |
+| D-8 | No collectable image (CR-001) | **Approved:** `PARTIAL_OR_PRIVATE` with `NO_IMAGE:` (brief §4), instead of SUCCESS with `NOT_AVAILABLE`. |
+| D-9 | Forms of address (CR-001) | **Approved:** "chị"/"anh" – "em" when gender is self-declared or confidently perceived; "bạn" – "mình" otherwise. |
+
+## 9. Change Request CR-001
+
+Source: review of the original brief after Phase 1 (gaps reported to the user). Items approved and scheduled first:
+1 (no image → PARTIAL), 2 (perceived demographic estimate), 5 (forms of address). Implementation order:
+TASK-021 → TASK-022 → TASK-023 (addressing uses the gender result of TASK-022). Remaining gaps (brand blocking,
+Vietnamese output text, real-profile test runs, emotional quality / live LLM) are pending further decisions.
+
+## 10. Change Request CR-002
+
+Approved after CR-001: block the Dr.Bee brand and its product domain in every generated text (original brief §2).
+Implemented as TASK-024.
+
+## 11. Change Request CR-003
+
+User asked to fix the remaining gaps. Implemented now: TASK-025 (Vietnamese output text) → TASK-026 (emotional
+quality) → TASK-027 (real-profile tooling). Still requiring the user: an `ANTHROPIC_API_KEY` to verify Claude live, and
+consented real profile data for the brief's "3 real Facebook links" run.
+
+## 12. Change Request CR-004
+
+User request: use Gemini because the Anthropic API requires billing. Implemented as TASK-028 before TASK-026, so the
+emotional-quality work can be verified against a live model. Live verification needs the user's `GEMINI_API_KEY`.

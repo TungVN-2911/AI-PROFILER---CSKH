@@ -7,8 +7,9 @@
   ],
   "synthetic_data": true,
   "collected_at": "2026-10-06T09:00:00+07:00",
-  "generation_mode": "deterministic",
-  "model_id": null,
+  "addressing": "bạn/mình (chưa rõ giới tính)",
+  "generation_mode": "llm",
+  "model_id": "gemini-3.5-flash-lite",
   "fact_ledger": [
     {
       "id": "F1",
@@ -115,14 +116,18 @@
   ],
   "grounding": {
     "core_empathy_angle": [
-      "F9",
-      "F10"
+      "F5",
+      "F7"
     ],
+    "gender": [],
+    "estimated_age_range": [],
     "apparent_lifestyle": [
       "F5",
       "F6",
       "F7",
-      "F3"
+      "F9",
+      "F10",
+      "F11"
     ],
     "messages": [
       {
@@ -136,32 +141,33 @@
         "index": 1,
         "kind": "grounded",
         "fact_ids": [
-          "F10"
+          "F12"
         ]
       },
       {
         "index": 2,
-        "kind": "grounded",
-        "fact_ids": [
-          "F11"
-        ]
+        "kind": "neutral",
+        "fact_ids": []
       },
       {
         "index": 3,
         "kind": "grounded",
         "fact_ids": [
-          "F5"
+          "F9"
         ]
       },
       {
         "index": 4,
-        "kind": "neutral",
-        "fact_ids": []
+        "kind": "grounded",
+        "fact_ids": [
+          "F9"
+        ]
       },
       {
         "index": 5,
         "kind": "grounded",
         "fact_ids": [
+          "F2",
           "F6"
         ]
       },
@@ -169,21 +175,21 @@
         "index": 6,
         "kind": "grounded",
         "fact_ids": [
-          "F7"
+          "F10"
         ]
       },
       {
         "index": 7,
         "kind": "grounded",
         "fact_ids": [
-          "F2"
+          "F11"
         ]
       },
       {
         "index": 8,
         "kind": "grounded",
         "fact_ids": [
-          "F3"
+          "F7"
         ]
       },
       {
@@ -193,15 +199,17 @@
       }
     ],
     "evening_hook": [
-      "F9"
+      "F11"
     ]
   },
   "validation": {
     "passed": true,
-    "attempts": 1,
-    "violations": []
+    "attempts": 2,
+    "violations": [
+      "attempt 1: [PRESUMPTION] messages[3]: presumes the customer's situation: 'chắc hẳn'"
+    ]
   },
   "technical_limitations": [
-    "Synthetic test persona: data is fictional, not collected from Facebook."
+    "Persona thử nghiệm giả lập: dữ liệu là hư cấu, không thu thập từ Facebook."
   ]
 }

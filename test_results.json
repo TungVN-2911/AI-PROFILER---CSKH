@@ -1,18 +1,19 @@
 {
   "project": "Facebook Profiler Agent (TES-3808)",
-  "generated_at": "2026-10-06T05:15:59+00:00",
+  "generated_at": "2026-10-06T10:07:02+00:00",
   "environment": {
     "python": "3.12.10",
     "platform": "Windows-11-10.0.26200-SP0",
-    "llm_available": false,
-    "llm_model": null
+    "llm_available": true,
+    "llm_provider": "gemini",
+    "llm_model": "gemini-3.5-flash"
   },
-  "data_note": "TECHNICAL LIMITATION: profile cases use synthetic fixture personas (fixtures/profiles, 'synthetic': true), not real Facebook data. Facebook requires login for nearly all profile content and this agent does not log in or bypass access controls; the 'live_facebook_attempt' case documents what one unauthenticated request actually returns.",
+  "data_note": "TECHNICAL LIMITATION: các trường hợp profile dùng persona thử nghiệm giả lập (fixtures/profiles, 'synthetic': true), không phải dữ liệu Facebook thật. Facebook yêu cầu đăng nhập để xem gần như toàn bộ nội dung trang cá nhân và agent không đăng nhập hay vượt qua cơ chế kiểm soát truy cập; trường hợp 'live_facebook_attempt' ghi lại kết quả thực tế của một request không đăng nhập. Để chạy trên profile thật (có sự đồng ý), xem README mục 'Running on real profiles'.",
   "summary": {
-    "cases": 7,
-    "pass": 6,
+    "cases": 8,
+    "pass": 8,
     "fail": 0,
-    "not_run": 1
+    "not_run": 0
   },
   "results": [
     {
@@ -21,7 +22,7 @@
       "command": "python main.py --url \"https://www.facebook.com/fixture.minh.anh\"",
       "result": "PASS",
       "exit_code": 0,
-      "duration_seconds": 0.43,
+      "duration_seconds": 8.38,
       "status": "SUCCESS",
       "error_note": null,
       "access_state": "PUBLIC",
@@ -29,7 +30,7 @@
         "profile_store"
       ],
       "synthetic_data": true,
-      "generation_mode": "deterministic",
+      "generation_mode": "llm",
       "message_count": 10,
       "checks": {
         "stdout_is_single_json_document": true,
@@ -40,39 +41,39 @@
         "every_message_grounding_recorded": true
       },
       "technical_limitations": [
-        "Synthetic test persona: data is fictional, not collected from Facebook."
+        "Persona thử nghiệm giả lập: dữ liệu là hư cấu, không thu thập từ Facebook."
       ],
       "output": {
         "status": "SUCCESS",
         "facebook_url": "https://www.facebook.com/fixture.minh.anh",
         "profile_data": {
           "customer_name": "Nguyễn Minh Anh",
-          "visual_context": "PROVIDED IMAGE DESCRIPTION: Ảnh đại diện có vẻ cho thấy một người mặc đồ chạy bộ, đeo số áo, đứng cạnh vạch đích.",
+          "visual_context": "MÔ TẢ ẢNH (từ dữ liệu được cung cấp): Ảnh đại diện có vẻ cho thấy một người mặc đồ chạy bộ, đeo số áo, đứng cạnh vạch đích.",
           "estimated_demographics": {
             "gender": "UNKNOWN",
             "estimated_age_range": "UNKNOWN",
-            "apparent_lifestyle": "INFERENCE: day-to-day life appears to involve stated interests: chạy bộ; làm bánh; cây cảnh trong nhà, stated work: Thiết kế đồ họa tại Studio Lá Xanh (based on F5, F6, F7, F3)"
+            "apparent_lifestyle": "INFERENCE: Bạn yêu thích vận động ngoài trời qua việc chạy bộ và có lối sống gắn liền với sở thích thủ công như làm bánh sourdough hay trồng cây trong nhà."
           }
         },
         "ethical_rapport": {
-          "core_empathy_angle": "Quan tâm chân thành tới những điều bạn ấy tự chia sẻ công khai: “Hoàn thành 10km đầu tiên quanh Hồ Tây sáng nay, mệt nhưng…”; “Mẻ sourdough thứ 3, cuối cùng vỏ bánh cũng giòn 🥖”",
+          "core_empathy_angle": "Mình rất ấn tượng với sự kiên trì của bạn qua những buổi chạy bộ và niềm vui giản dị từ việc chăm sóc cây cối.",
           "dialogue_sequence_10": [
-            "Chào Nguyễn Minh Anh, mình rất vui được làm quen với bạn!",
-            "Bài viết “Mẻ sourdough thứ 3, cuối cùng vỏ bánh cũng giòn 🥖” của bạn làm mình ấn tượng ghê. Lúc đó bạn cảm thấy thế nào?",
-            "Mình nhớ bạn có viết: “Cây trầu bà trên bàn làm việc vừa ra lá mới, mừng ghê.” Chuyện đó có gì thú vị, bạn kể mình nghe với?",
-            "Mình thấy bạn có nhắc đến sở thích chạy bộ. Điều gì khiến bạn gắn bó với chạy bộ vậy?",
-            "Dạo này có điều gì nhỏ nhỏ khiến bạn thấy vui không?",
-            "Bạn bắt đầu thích làm bánh từ khi nào vậy?",
-            "Với cây cảnh trong nhà, bạn có mẹo nhỏ nào muốn chia sẻ cho người mới bắt đầu không?",
-            "Mình rất thích phần giới thiệu của bạn: “Mê cà phê sáng ☕ | Chạy bộ cuối tuần quanh Hồ Tây | Đang tập làm bánh mì sourdough”.",
-            "Mình thấy bạn có ghi “Thiết kế đồ họa tại Studio Lá Xanh” ở phần công việc. Bạn thấy điều gì thú vị nhất trong công việc này?",
-            "Rất vui được trò chuyện với bạn, hẹn sớm nói chuyện tiếp nhé!"
+            "Chào Nguyễn Minh Anh, rất vui được làm quen với bạn nhé.",
+            "Mình nhìn ảnh đại diện thấy có vẻ bạn mặc đồ chạy bộ, đeo số áo và đứng cạnh vạch đích rất năng động.",
+            "Hôm nay của bạn diễn ra thế nào rồi?",
+            "Mình thấy bạn có chia sẻ việc hoàn thành 10km đầu tiên quanh Hồ Tây sáng nay.",
+            "Đó thực sự là một cột mốc rất tuyệt vời đúng không bạn.",
+            "Ngoài chạy bộ ra, mình biết bạn còn thích làm bánh mì sourdough.",
+            "Nghe đến mẻ sourdough thứ ba với phần vỏ bánh giòn là thấy sự tỉ mỉ của bạn trong đó rồi.",
+            "Không gian làm việc của bạn có cây trầu bà vừa ra lá mới nữa, thật là những góc nhỏ bình yên.",
+            "Bạn có hay dành thời gian để chăm sóc khu vườn nhỏ trong nhà vào cuối tuần không?",
+            "Chúc bạn một ngày mới thật nhiều năng lượng và niềm vui nhé."
           ],
           "sales_mention_check": "ZERO_SALES_CONFIRMED"
         },
         "evening_cadence_20pm": {
           "trigger_time": "20:00",
-          "evening_hook_message": "Chào buổi tối! Mình chợt nhớ tới điều bạn từng chia sẻ: “Hoàn thành 10km đầu tiên quanh Hồ Tây sáng nay, mệt nhưng vui!” Khi nào rảnh, bạn kể mình nghe thêm nhé?"
+          "evening_hook_message": "Mình lại nhớ đến hình ảnh cây trầu bà trên bàn làm việc vừa ra lá mới của bạn, chúc bạn có một buổi tối thật thư thái."
         }
       }
     },
@@ -82,7 +83,7 @@
       "command": "python main.py --url \"https://www.facebook.com/fixture.thu.ha\"",
       "result": "PASS",
       "exit_code": 0,
-      "duration_seconds": 0.42,
+      "duration_seconds": 5.08,
       "status": "SUCCESS",
       "error_note": null,
       "access_state": "PARTIAL",
@@ -90,7 +91,100 @@
         "profile_store"
       ],
       "synthetic_data": true,
-      "generation_mode": "deterministic",
+      "generation_mode": "llm",
+      "message_count": 10,
+      "checks": {
+        "stdout_is_single_json_document": true,
+        "stdout_equals_output_json": true,
+        "schema_valid": true,
+        "zero_sales_confirmed": true,
+        "message_count_5_to_10": true,
+        "every_message_grounding_recorded": true
+      },
+      "technical_limitations": [
+        "Persona thử nghiệm giả lập: dữ liệu là hư cấu, không thu thập từ Facebook.",
+        "Chỉ phần Giới thiệu và ảnh đại diện là công khai; bài đăng và các ảnh khác bị giới hạn."
+      ],
+      "output": {
+        "status": "SUCCESS",
+        "facebook_url": "https://www.facebook.com/fixture.thu.ha",
+        "profile_data": {
+          "customer_name": "Lê Thu Hà",
+          "visual_context": "MÔ TẢ ẢNH (từ dữ liệu được cung cấp): Ảnh đại diện có vẻ cho thấy một người ngồi cạnh kệ sách, tay cầm tách trà.",
+          "estimated_demographics": {
+            "gender": "UNKNOWN",
+            "estimated_age_range": "UNKNOWN",
+            "apparent_lifestyle": "INFERENCE: Cuộc sống gắn liền với việc giảng dạy tiếng Anh, đọc sách và thưởng thức trà chiều F2, F3."
+          }
+        },
+        "ethical_rapport": {
+          "core_empathy_angle": "Mình rất đồng điệu với tình yêu sách và những buổi trà chiều thư thả của bạn F2, F3.",
+          "dialogue_sequence_10": [
+            "Chào bạn Lê Thu Hà, mình rất vui được làm quen với bạn.",
+            "Nhìn ảnh đại diện có vẻ bạn đang ngồi cạnh kệ sách và cầm một tách trà rất thư thái F3.",
+            "Công việc giáo viên tiếng Anh của bạn hẳn mang lại nhiều niềm vui F2.",
+            "Sở thích mê đọc sách thật là một thói quen tuyệt vời F2.",
+            "Những buổi trà chiều nhẹ nhàng luôn đem lại cảm giác bình yên F2.",
+            "Hôm nay của bạn diễn ra thế nào rồi?",
+            "Sách hay trà chiều luôn là những người bạn tinh thần đáng quý F2.",
+            "Góc ngồi bên kệ sách trong ảnh của bạn trông thật ấm cúng F3.",
+            "Bạn có đang đọc cuốn sách nào thú vị gần đây không F2?",
+            "Chúc bạn một ngày thật nhiều năng lượng và an lành nhé."
+          ],
+          "sales_mention_check": "ZERO_SALES_CONFIRMED"
+        },
+        "evening_cadence_20pm": {
+          "trigger_time": "20:00",
+          "evening_hook_message": "Hy vọng bạn đang có một buổi tối nhẹ nhàng bên những trang sách yêu thích F2."
+        }
+      }
+    },
+    {
+      "case": "public_no_image",
+      "purpose": "No public image → PARTIAL_OR_PRIVATE / NO_IMAGE (brief §4)",
+      "command": "python main.py --url \"https://www.facebook.com/fixture.quoc.bao\"",
+      "result": "PASS",
+      "exit_code": 0,
+      "duration_seconds": 1.28,
+      "status": "PARTIAL_OR_PRIVATE",
+      "error_note": "NO_IMAGE: Không thu thập hoặc không đọc được hình ảnh công khai nào (không có ảnh công khai nào được cung cấp); trang cá nhân chỉ đọc được một phần nên không tạo mô tả hình ảnh và tin nhắn.",
+      "access_state": "PUBLIC",
+      "source": [
+        "profile_store"
+      ],
+      "synthetic_data": true,
+      "generation_mode": "none",
+      "message_count": null,
+      "checks": {
+        "stdout_is_single_json_document": true,
+        "stdout_equals_output_json": true,
+        "schema_valid": true
+      },
+      "technical_limitations": [
+        "Persona thử nghiệm giả lập: dữ liệu là hư cấu, không thu thập từ Facebook.",
+        "NO_IMAGE: Không thu thập hoặc không đọc được hình ảnh công khai nào (không có ảnh công khai nào được cung cấp); trang cá nhân chỉ đọc được một phần nên không tạo mô tả hình ảnh và tin nhắn."
+      ],
+      "output": {
+        "status": "PARTIAL_OR_PRIVATE",
+        "facebook_url": "https://www.facebook.com/fixture.quoc.bao",
+        "error_note": "NO_IMAGE: Không thu thập hoặc không đọc được hình ảnh công khai nào (không có ảnh công khai nào được cung cấp); trang cá nhân chỉ đọc được một phần nên không tạo mô tả hình ảnh và tin nhắn."
+      }
+    },
+    {
+      "case": "self_declared_female",
+      "purpose": "Self-declared gender/birth year → labelled demographics, 'chị/em' address",
+      "command": "python main.py --url \"https://www.facebook.com/fixture.khanh.linh\"",
+      "result": "PASS",
+      "exit_code": 0,
+      "duration_seconds": 11.49,
+      "status": "SUCCESS",
+      "error_note": null,
+      "access_state": "PUBLIC",
+      "source": [
+        "profile_store"
+      ],
+      "synthetic_data": true,
+      "generation_mode": "llm",
       "message_count": 8,
       "checks": {
         "stdout_is_single_json_document": true,
@@ -101,99 +195,37 @@
         "every_message_grounding_recorded": true
       },
       "technical_limitations": [
-        "Synthetic test persona: data is fictional, not collected from Facebook.",
-        "Only the intro section is public; posts and photos are restricted."
+        "Persona thử nghiệm giả lập: dữ liệu là hư cấu, không thu thập từ Facebook."
       ],
       "output": {
         "status": "SUCCESS",
-        "facebook_url": "https://www.facebook.com/fixture.thu.ha",
+        "facebook_url": "https://www.facebook.com/fixture.khanh.linh",
         "profile_data": {
-          "customer_name": "Lê Thu Hà",
-          "visual_context": "NOT_AVAILABLE: no public image provided",
+          "customer_name": "Vũ Khánh Linh",
+          "visual_context": "MÔ TẢ ẢNH (từ dữ liệu được cung cấp): Ảnh đại diện có vẻ cho thấy một người ôm đàn ukulele, ngồi bên cửa sổ.",
           "estimated_demographics": {
-            "gender": "UNKNOWN",
-            "estimated_age_range": "UNKNOWN",
-            "apparent_lifestyle": "INFERENCE: day-to-day life appears to involve self-description: Giáo viên tiếng Anh, mê đọc sách và trà chiều (based on F2)"
+            "gender": "Nữ (tự khai báo trên trang cá nhân [F8])",
+            "estimated_age_range": "29–30 tuổi (tính từ năm sinh tự khai báo 1996 [F9], tại năm 2026)",
+            "apparent_lifestyle": "INFERENCE: Chị Vũ Khánh Linh yêu âm nhạc acoustic, đang tự học chơi đàn ukulele và có sở thích đọc truyện tranh, hiện đang sinh sống và làm việc tại Cần Thơ."
           }
         },
         "ethical_rapport": {
-          "core_empathy_angle": "Quan tâm chân thành tới những điều bạn ấy tự chia sẻ công khai: “Giáo viên tiếng Anh, mê đọc sách và trà chiều”; “Giáo viên tiếng Anh, mê đọc sách và trà chiều”",
+          "core_empathy_angle": "Chia sẻ niềm vui khi hoàn thành trọn vẹn bài đàn ukulele đầu tiên và tình yêu với âm nhạc acoustic.",
           "dialogue_sequence_10": [
-            "Chào Lê Thu Hà, mình rất vui được làm quen với bạn!",
-            "Mình rất thích phần giới thiệu của bạn: “Giáo viên tiếng Anh, mê đọc sách và trà chiều”.",
-            "Mình thấy bạn có ghi nơi sống hiện tại là Đà Nẵng. Ở Đà Nẵng bạn thích ghé chỗ nào nhất?",
-            "Dạo này có điều gì nhỏ nhỏ khiến bạn thấy vui không?",
-            "Cuối tuần bạn thường thích làm gì để thư giãn?",
-            "Nếu có cuốn sách hay bộ phim nào bạn thấy đáng xem, bạn giới thiệu mình với được không?",
-            "Mình luôn sẵn lòng lắng nghe nếu bạn muốn trò chuyện thêm.",
-            "Rất vui được trò chuyện với bạn, hẹn sớm nói chuyện tiếp nhé!"
+            "Em chào chị Vũ Khánh Linh ạ.",
+            "Nhìn ảnh đại diện thì có vẻ chị đang ôm đàn ukulele và ngồi bên cửa sổ rất nên thơ.",
+            "Em rất ấn tượng khi biết chị yêu thích nhạc acoustic và đang học đàn ukulele.",
+            "Thật tuyệt vời khi chị đã tập xong bài ukulele đầu tiên trọn vẹn ạ.",
+            "Ngoài âm nhạc, em được biết chị còn có sở thích đọc truyện tranh nữa.",
+            "Chị làm việc ở Thư viện Hoa Sen tại Cần Thơ đúng không ạ?",
+            "Dạo này chị đang tập thêm bài hát mới nào cho chiếc đàn của mình chưa ạ?",
+            "Chúc chị một ngày mới thật nhiều niềm vui và bình an nhé ạ."
           ],
           "sales_mention_check": "ZERO_SALES_CONFIRMED"
         },
         "evening_cadence_20pm": {
           "trigger_time": "20:00",
-          "evening_hook_message": "Chào buổi tối! Mình chợt nhớ tới điều bạn từng chia sẻ: “Giáo viên tiếng Anh, mê đọc sách và trà chiều”. Khi nào rảnh, bạn kể mình nghe thêm nhé?"
-        }
-      }
-    },
-    {
-      "case": "public_no_image",
-      "purpose": "No public image → visual_context NOT_AVAILABLE",
-      "command": "python main.py --url \"https://www.facebook.com/fixture.quoc.bao\"",
-      "result": "PASS",
-      "exit_code": 0,
-      "duration_seconds": 0.41,
-      "status": "SUCCESS",
-      "error_note": null,
-      "access_state": "PUBLIC",
-      "source": [
-        "profile_store"
-      ],
-      "synthetic_data": true,
-      "generation_mode": "deterministic",
-      "message_count": 10,
-      "checks": {
-        "stdout_is_single_json_document": true,
-        "stdout_equals_output_json": true,
-        "schema_valid": true,
-        "zero_sales_confirmed": true,
-        "message_count_5_to_10": true,
-        "every_message_grounding_recorded": true
-      },
-      "technical_limitations": [
-        "Synthetic test persona: data is fictional, not collected from Facebook."
-      ],
-      "output": {
-        "status": "SUCCESS",
-        "facebook_url": "https://www.facebook.com/fixture.quoc.bao",
-        "profile_data": {
-          "customer_name": "Trịnh Quốc Bảo",
-          "visual_context": "NOT_AVAILABLE: no public image provided",
-          "estimated_demographics": {
-            "gender": "UNKNOWN",
-            "estimated_age_range": "UNKNOWN",
-            "apparent_lifestyle": "INFERENCE: day-to-day life appears to involve stated interests: đạp xe; cờ vua; nhiếp ảnh phong cảnh, stated work: Kỹ sư phần mềm tại Công ty Mây Trắng (based on F4, F5, F6, F3)"
-          }
-        },
-        "ethical_rapport": {
-          "core_empathy_angle": "Quan tâm chân thành tới những điều bạn ấy tự chia sẻ công khai: “Chuyến đạp xe 60km ra biển Cần Giờ, gió ngược nhưng cảnh…”; “Ván cờ hôm nay thua ở nước thứ 40, phải học lại khai cuộc…”",
-          "dialogue_sequence_10": [
-            "Chào Trịnh Quốc Bảo, mình rất vui được làm quen với bạn!",
-            "Bài viết “Ván cờ hôm nay thua ở nước thứ 40, phải học lại khai cuộc thôi.” của bạn làm mình ấn tượng ghê. Lúc đó bạn cảm thấy thế nào?",
-            "Mình thấy bạn có nhắc đến sở thích đạp xe. Điều gì khiến bạn gắn bó với đạp xe vậy?",
-            "Bạn bắt đầu thích cờ vua từ khi nào vậy?",
-            "Dạo này có điều gì nhỏ nhỏ khiến bạn thấy vui không?",
-            "Với nhiếp ảnh phong cảnh, bạn có mẹo nhỏ nào muốn chia sẻ cho người mới bắt đầu không?",
-            "Mình rất thích phần giới thiệu của bạn: “Thích đạp xe đường dài và chơi cờ vua cuối tuần”.",
-            "Mình thấy bạn có ghi “Kỹ sư phần mềm tại Công ty Mây Trắng” ở phần công việc. Bạn thấy điều gì thú vị nhất trong công việc này?",
-            "Mình thấy bạn có ghi nơi sống hiện tại là Thành phố Hồ Chí Minh. Ở Thành phố Hồ Chí Minh bạn thích ghé chỗ nào nhất?",
-            "Rất vui được trò chuyện với bạn, hẹn sớm nói chuyện tiếp nhé!"
-          ],
-          "sales_mention_check": "ZERO_SALES_CONFIRMED"
-        },
-        "evening_cadence_20pm": {
-          "trigger_time": "20:00",
-          "evening_hook_message": "Chào buổi tối! Mình chợt nhớ tới điều bạn từng chia sẻ: “Chuyến đạp xe 60km ra biển Cần Giờ, gió ngược nhưng cảnh đẹp xứng đáng.” Khi nào rảnh, bạn kể mình nghe thêm nhé?"
+          "evening_hook_message": "Em gửi lời chào tới chị Vũ Khánh Linh ở Cần Thơ, không biết hôm nay những ngón tay của chị đã đỡ đau hơn sau buổi tập ukulele chưa ạ?"
         }
       }
     },
@@ -203,9 +235,9 @@
       "command": "python main.py --url \"https://www.facebook.com/fixture.private.user\"",
       "result": "PASS",
       "exit_code": 0,
-      "duration_seconds": 0.4,
+      "duration_seconds": 1.27,
       "status": "PARTIAL_OR_PRIVATE",
-      "error_note": "PRIVATE_PROFILE: the profile is private; no public content is available to analyse. | Profile content is restricted to friends; nothing beyond the display name is publicly visible.",
+      "error_note": "PRIVATE_PROFILE: Trang cá nhân bị khóa riêng tư, không có nội dung công khai để phân tích. | Nội dung trang cá nhân chỉ hiển thị với bạn bè; ngoài tên hiển thị không có gì công khai.",
       "access_state": "PRIVATE",
       "source": [
         "profile_store"
@@ -219,13 +251,13 @@
         "schema_valid": true
       },
       "technical_limitations": [
-        "Synthetic test persona: data is fictional, not collected from Facebook.",
-        "Profile content is restricted to friends; nothing beyond the display name is publicly visible."
+        "Persona thử nghiệm giả lập: dữ liệu là hư cấu, không thu thập từ Facebook.",
+        "Nội dung trang cá nhân chỉ hiển thị với bạn bè; ngoài tên hiển thị không có gì công khai."
       ],
       "output": {
         "status": "PARTIAL_OR_PRIVATE",
         "facebook_url": "https://www.facebook.com/fixture.private.user",
-        "error_note": "PRIVATE_PROFILE: the profile is private; no public content is available to analyse. | Profile content is restricted to friends; nothing beyond the display name is publicly visible."
+        "error_note": "PRIVATE_PROFILE: Trang cá nhân bị khóa riêng tư, không có nội dung công khai để phân tích. | Nội dung trang cá nhân chỉ hiển thị với bạn bè; ngoài tên hiển thị không có gì công khai."
       }
     },
     {
@@ -234,9 +266,9 @@
       "command": "python main.py --url \"https://www.facebook.com/fixture.dead.link\"",
       "result": "PASS",
       "exit_code": 0,
-      "duration_seconds": 0.4,
+      "duration_seconds": 1.29,
       "status": "PARTIAL_OR_PRIVATE",
-      "error_note": "NOT_FOUND: the profile does not exist or is no longer available (dead link). | Link shows \"This content isn't available right now\" (account removed or URL changed).",
+      "error_note": "NOT_FOUND: Trang cá nhân không tồn tại hoặc không còn truy cập được (link chết). | Link hiển thị \"Nội dung này hiện không khả dụng\" (tài khoản đã xóa hoặc đổi URL).",
       "access_state": "NOT_FOUND",
       "source": [
         "profile_store"
@@ -250,21 +282,72 @@
         "schema_valid": true
       },
       "technical_limitations": [
-        "Synthetic test persona: data is fictional, not collected from Facebook.",
-        "Link shows \"This content isn't available right now\" (account removed or URL changed)."
+        "Persona thử nghiệm giả lập: dữ liệu là hư cấu, không thu thập từ Facebook.",
+        "Link hiển thị \"Nội dung này hiện không khả dụng\" (tài khoản đã xóa hoặc đổi URL)."
       ],
       "output": {
         "status": "PARTIAL_OR_PRIVATE",
         "facebook_url": "https://www.facebook.com/fixture.dead.link",
-        "error_note": "NOT_FOUND: the profile does not exist or is no longer available (dead link). | Link shows \"This content isn't available right now\" (account removed or URL changed)."
+        "error_note": "NOT_FOUND: Trang cá nhân không tồn tại hoặc không còn truy cập được (link chết). | Link hiển thị \"Nội dung này hiện không khả dụng\" (tài khoản đã xóa hoặc đổi URL)."
       }
     },
     {
       "case": "llm_mode_public_rich",
-      "purpose": "Claude generation on the rich profile (requires ANTHROPIC_API_KEY)",
+      "purpose": "LLM generation on the rich profile (Gemini or Claude; requires an API key)",
       "command": "python main.py --url \"https://www.facebook.com/fixture.minh.anh\" --mode llm",
-      "result": "NOT_RUN",
-      "reason": "ANTHROPIC_API_KEY is not configured in this environment; LLM path verified only with a scripted fake client in the test suite."
+      "result": "PASS",
+      "exit_code": 0,
+      "duration_seconds": 22.33,
+      "status": "SUCCESS",
+      "error_note": null,
+      "access_state": "PUBLIC",
+      "source": [
+        "profile_store"
+      ],
+      "synthetic_data": true,
+      "generation_mode": "llm",
+      "message_count": 7,
+      "checks": {
+        "stdout_is_single_json_document": true,
+        "stdout_equals_output_json": true,
+        "schema_valid": true,
+        "zero_sales_confirmed": true,
+        "message_count_5_to_10": true,
+        "every_message_grounding_recorded": true
+      },
+      "technical_limitations": [
+        "Persona thử nghiệm giả lập: dữ liệu là hư cấu, không thu thập từ Facebook."
+      ],
+      "output": {
+        "status": "SUCCESS",
+        "facebook_url": "https://www.facebook.com/fixture.minh.anh",
+        "profile_data": {
+          "customer_name": "Nguyễn Minh Anh",
+          "visual_context": "MÔ TẢ ẢNH (từ dữ liệu được cung cấp): Ảnh đại diện có vẻ cho thấy một người mặc đồ chạy bộ, đeo số áo, đứng cạnh vạch đích.",
+          "estimated_demographics": {
+            "gender": "UNKNOWN",
+            "estimated_age_range": "UNKNOWN",
+            "apparent_lifestyle": "INFERENCE: Bạn có lối sống lành mạnh, kiên nhẫn và sáng tạo, biết cách cân bằng công việc thiết kế với các sở thích cá nhân bổ ích ngay tại Hà Nội."
+          }
+        },
+        "ethical_rapport": {
+          "core_empathy_angle": "Mình vô cùng trân trọng tinh thần kiên trì, yêu thích sự sáng tạo và lối sống lành mạnh của bạn qua việc bền bỉ chạy bộ, kiên nhẫn làm bánh sourdough và chăm sóc cây xanh.",
+          "dialogue_sequence_10": [
+            "Chào Minh Anh nha, rất vui được làm quen với bạn! Nhìn ảnh đại diện có vẻ bạn là một người rất yêu thích thể thao, mặc đồ chạy bộ và rạng rỡ ngay tại vạch đích.",
+            "Công việc thiết kế đồ họa tại Studio Lá Xanh và những năm tháng học tập tại Học viện Thiết kế Sông Hồng của bạn nghe thật thú vị và tràn đầy cảm hứng nghệ thuật.",
+            "Thói quen nhâm nhi cà phê sáng và tập làm bánh sourdough của bạn thật đáng yêu. Chúc mừng mẻ bánh thứ 3 của bạn cuối cùng cũng có lớp vỏ giòn rụm ngon lành nhé!",
+            "Chạy bộ quanh Hồ Tây mỗi cuối tuần là một hoạt động rất tuyệt vời. Bạn đã hoàn thành xuất sắc cự ly 10km đầu tiên rồi đấy!",
+            "Niềm vui chăm sóc cây cảnh trong nhà thật nhẹ nhàng. Chiếc lá mới nhú của cây trầu bà trên bàn làm việc của bạn quả là một điều nhỏ xinh mang lại thật nhiều năng lượng tích cực.",
+            "Hôm nay của bạn thế nào? Bạn có dành thời gian cho những sở thích quen thuộc của mình không?",
+            "Mình rất mong được trò chuyện nhiều hơn cùng bạn. Chúc bạn luôn có những ngày thật nhiều niềm vui và năng lượng nhé!"
+          ],
+          "sales_mention_check": "ZERO_SALES_CONFIRMED"
+        },
+        "evening_cadence_20pm": {
+          "trigger_time": "20:00",
+          "evening_hook_message": "Sau giờ làm việc thiết kế tại Studio Lá Xanh, bạn có thường dành thời gian buổi tối để ngắm nhìn mầm lá trầu bà mới hay chuẩn bị cho một mẻ sourdough tiếp theo không?"
+        }
+      }
     },
     {
       "case": "live_facebook_attempt",
@@ -272,9 +355,9 @@
       "command": "python main.py --url \"https://www.facebook.com/facebook\" --live",
       "result": "PASS",
       "exit_code": 0,
-      "duration_seconds": 1.76,
+      "duration_seconds": 2.23,
       "status": "PARTIAL_OR_PRIVATE",
-      "error_note": "TECHNICAL LIMITATION: Facebook returned a login/checkpoint page for this profile. The agent does not log in or bypass access controls. Provide the profile data with --profile-file instead.",
+      "error_note": "TECHNICAL LIMITATION: Facebook trả về trang đăng nhập/xác minh (checkpoint) cho trang cá nhân này. Agent không đăng nhập hay vượt qua cơ chế kiểm soát truy cập. Hãy cung cấp dữ liệu qua --profile-file.",
       "access_state": "LOGIN_REQUIRED",
       "source": [
         "live_meta"
@@ -288,13 +371,13 @@
         "schema_valid": true
       },
       "technical_limitations": [
-        "TECHNICAL LIMITATION: Facebook returned a login/checkpoint page for this profile. The agent does not log in or bypass access controls. Provide the profile data with --profile-file instead.",
-        "Live fetch reads only public HTML meta tags (og:title, og:description, og:image) from one unauthenticated request; posts, About details and most profile content are not accessible without login."
+        "TECHNICAL LIMITATION: Facebook trả về trang đăng nhập/xác minh (checkpoint) cho trang cá nhân này. Agent không đăng nhập hay vượt qua cơ chế kiểm soát truy cập. Hãy cung cấp dữ liệu qua --profile-file.",
+        "Chế độ --live chỉ đọc các thẻ meta HTML công khai (og:title, og:description, og:image) từ một request không đăng nhập; bài đăng, mục Giới thiệu và phần lớn nội dung trang cá nhân không truy cập được nếu không đăng nhập."
       ],
       "output": {
         "status": "PARTIAL_OR_PRIVATE",
         "facebook_url": "https://www.facebook.com/facebook",
-        "error_note": "TECHNICAL LIMITATION: Facebook returned a login/checkpoint page for this profile. The agent does not log in or bypass access controls. Provide the profile data with --profile-file instead."
+        "error_note": "TECHNICAL LIMITATION: Facebook trả về trang đăng nhập/xác minh (checkpoint) cho trang cá nhân này. Agent không đăng nhập hay vượt qua cơ chế kiểm soát truy cập. Hãy cung cấp dữ liệu qua --profile-file."
       }
     }
   ]

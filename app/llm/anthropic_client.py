@@ -28,8 +28,8 @@ class AnthropicLLMClient:
     def __init__(self, settings: Settings, client: Any | None = None) -> None:
         self.model_id = settings.llm_model
         if client is None:
-            if not settings.has_llm_credentials:
-                raise LLMError("no_credentials", "ANTHROPIC_API_KEY is not set")
+            if not settings.has_anthropic_credentials:
+                raise LLMError("no_credentials", "chưa đặt ANTHROPIC_API_KEY")
             client = anthropic.Anthropic(
                 api_key=settings.anthropic_api_key.get_secret_value(),
                 timeout=settings.llm_timeout_seconds,

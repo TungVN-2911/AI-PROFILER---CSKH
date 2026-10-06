@@ -13,7 +13,7 @@ RICH_URL = "https://www.facebook.com/fixture.minh.anh"
 
 
 def clean_env():
-    env = {k: v for k, v in os.environ.items() if not k.startswith(("ANTHROPIC_", "PYTHONIOENCODING", "PYTHONUTF8", "LLM_", "LIVE_", "PROFILE_STORE", "MIN_GROUNDING", "DEFAULT_MESSAGE", "OUTPUT_LANGUAGE"))}
+    env = {k: v for k, v in os.environ.items() if not k.startswith(("ANTHROPIC_", "GEMINI_", "PYTHONIOENCODING", "PYTHONUTF8", "LLM_", "LIVE_", "PROFILE_STORE", "MIN_GROUNDING", "DEFAULT_MESSAGE", "OUTPUT_LANGUAGE"))}
     return env
 
 
@@ -56,7 +56,7 @@ def test_usage_error_emits_json_and_exit_2(tmp_path):
     code, out, _ = cli(tmp_path, "--url", RICH_URL, "--unknown-flag")
     assert code == 2
     doc = json.loads(out)
-    assert doc["status"] == "PARTIAL_OR_PRIVATE" and doc["error_note"].startswith("INVALID_INPUT: unrecognized arguments")
+    assert doc["status"] == "PARTIAL_OR_PRIVATE" and doc["error_note"].startswith("INVALID_INPUT: tham số dòng lệnh không hợp lệ (unrecognized arguments")
 
 
 def test_invalid_mode_choice_is_json(tmp_path):

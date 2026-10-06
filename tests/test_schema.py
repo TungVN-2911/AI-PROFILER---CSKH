@@ -45,7 +45,7 @@ def success_doc(n_messages=5):
         "facebook_url": "https://www.facebook.com/example_user",
         "profile_data": {
             "customer_name": "Minh Anh",
-            "visual_context": "NOT_AVAILABLE: no public image provided",
+            "visual_context": "NOT_AVAILABLE: không có ảnh công khai nào được cung cấp",
             "estimated_demographics": {
                 "gender": "UNKNOWN",
                 "estimated_age_range": "UNKNOWN",

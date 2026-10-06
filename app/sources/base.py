@@ -7,12 +7,12 @@ from typing import Iterable, Protocol
 from app.input import CanonicalUrl
 from app.models import READABLE_STATES, AccessState, AcquisitionResult, RawProfile
 
-SYNTHETIC_NOTE = "Synthetic test persona: data is fictional, not collected from Facebook."
+SYNTHETIC_NOTE = "Persona thử nghiệm giả lập: dữ liệu là hư cấu, không thu thập từ Facebook."
 
 NO_DATA_LIMITATION = (
-    "TECHNICAL LIMITATION: no legitimately accessible data for this profile. Facebook requires login for "
-    "nearly all profile content and this agent does not log in or bypass access controls. Provide the "
-    "profile data with --profile-file, or enable the opt-in public meta fetch with --live."
+    "TECHNICAL LIMITATION: Không có dữ liệu truy cập hợp lệ cho trang cá nhân này. Facebook yêu cầu đăng nhập "
+    "để xem gần như toàn bộ nội dung trang cá nhân, và agent không đăng nhập hay vượt qua cơ chế kiểm soát truy cập. "
+    "Hãy cung cấp dữ liệu qua --profile-file, hoặc bật chế độ đọc metadata công khai --live."
 )
 
 

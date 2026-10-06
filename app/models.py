@@ -46,11 +46,13 @@ FactCategory = Literal[
     "pronouns",
     "gender",
     "birth_year",
+    "perceived_gender",
+    "perceived_age",
     "other",
 ]
 
 
-NON_GROUNDING_CATEGORIES = frozenset({"name", "pronouns", "gender", "birth_year"})
+NON_GROUNDING_CATEGORIES = frozenset({"name", "pronouns", "gender", "birth_year", "perceived_gender", "perceived_age"})
 
 
 class _Strict(BaseModel):

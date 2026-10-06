@@ -20,25 +20,25 @@ def load_raw_profile(path: Path) -> RawProfile:
     try:
         text = path.read_text(encoding="utf-8-sig")
     except OSError as exc:
-        raise SourceError(f"cannot read profile file '{path}': {exc.strerror or exc}") from None
+        raise SourceError(f"không đọc được file dữ liệu '{path}': {exc.strerror or exc}") from None
     try:
         data = json.loads(text)
     except json.JSONDecodeError as exc:
-        raise SourceError(f"profile file '{path}' is not valid JSON (line {exc.lineno}: {exc.msg})") from None
+        raise SourceError(f"file dữ liệu '{path}' không phải JSON hợp lệ (dòng {exc.lineno}: {exc.msg})") from None
     try:
         return RawProfile.model_validate(data)
     except ValidationError as exc:
         problems = "; ".join(
             f"{'.'.join(str(p) for p in err['loc']) or '(root)'}: {err['msg']}" for err in exc.errors()[:5]
         )
-        raise SourceError(f"profile file '{path}' does not match the profile format: {problems}") from None
+        raise SourceError(f"file dữ liệu '{path}' không đúng định dạng profile: {problems}") from None
 
 
 def _canonical_of(raw: RawProfile, path: Path) -> CanonicalUrl:
     try:
         return validate_profile_url(raw.facebook_url)
     except InputError as exc:
-        raise SourceError(f"profile file '{path}' has an invalid facebook_url: {exc.reason}") from None
+        raise SourceError(f"file dữ liệu '{path}' có facebook_url không hợp lệ: {exc.reason}") from None
 
 
 class ProvidedFileSource:
@@ -54,7 +54,7 @@ class ProvidedFileSource:
         if _canonical_of(raw, self.path).url != url.url:
             # Using another person's data for this URL would be fabrication.
             raise SourceError(
-                f"profile file '{self.path}' is for {raw.facebook_url}, which does not match --url {url.url}"
+                f"file dữ liệu '{self.path}' là của {raw.facebook_url}, không khớp với --url {url.url}"
             )
         return result_from_raw(raw, url, self.name)
 
@@ -72,7 +72,7 @@ class FixtureStoreSource:
     def _build_index(self) -> dict[str, RawProfile]:
         index: dict[str, RawProfile] = {}
         if not self.directory.is_dir():
-            self.load_errors.append(f"profile store directory '{self.directory}' does not exist")
+            self.load_errors.append(f"thư mục dữ liệu '{self.directory}' không tồn tại")
             return index
         for path in sorted(self.directory.glob("*.json")):
             try:
@@ -84,7 +84,7 @@ class FixtureStoreSource:
                 log.warning("skipping profile store file: %s", exc)
                 continue
             if key in index:
-                self.load_errors.append(f"duplicate profile for {key} in '{path}' (ignored)")
+                self.load_errors.append(f"trùng dữ liệu cho {key} trong '{path}' (bỏ qua)")
                 log.warning("duplicate profile for %s in %s (ignored)", key, path)
                 continue
             index[key] = raw

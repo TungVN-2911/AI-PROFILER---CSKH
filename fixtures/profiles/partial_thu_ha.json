@@ -3,13 +3,18 @@
   "synthetic": true,
   "access": {
     "state": "PARTIAL",
-    "note": "Only the intro section is public; posts and photos are restricted."
+    "note": "Chỉ phần Giới thiệu và ảnh đại diện là công khai; bài đăng và các ảnh khác bị giới hạn."
   },
   "collected_at": "2026-10-06T09:10:00+07:00",
   "collection_method": "fixture",
   "display_name": "Lê Thu Hà",
   "bio": "Giáo viên tiếng Anh, mê đọc sách và trà chiều",
-  "public_info": {
-    "current_city": "Đà Nẵng"
-  }
+  "images": [
+    {
+      "kind": "avatar",
+      "path": null,
+      "url": null,
+      "alt_text": "Ảnh đại diện có vẻ cho thấy một người ngồi cạnh kệ sách, tay cầm tách trà."
+    }
+  ]
 }

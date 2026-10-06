@@ -3,7 +3,7 @@
   "synthetic": true,
   "access": {
     "state": "PRIVATE",
-    "note": "Profile content is restricted to friends; nothing beyond the display name is publicly visible."
+    "note": "Nội dung trang cá nhân chỉ hiển thị với bạn bè; ngoài tên hiển thị không có gì công khai."
   },
   "collected_at": "2026-10-06T09:05:00+07:00",
   "collection_method": "fixture",

@@ -89,6 +89,8 @@ class MessageGrounding(_Strict):
 
 class Grounding(_Strict):
     core_empathy_angle: list[str] = Field(default_factory=list)
+    gender: list[str] = Field(default_factory=list)
+    estimated_age_range: list[str] = Field(default_factory=list)
     apparent_lifestyle: list[str] = Field(default_factory=list)
     messages: list[MessageGrounding] = Field(default_factory=list)
     evening_hook: list[str] = Field(default_factory=list)
@@ -107,6 +109,7 @@ class EvidenceReport(_Strict):
     sources_used: list[str] = Field(default_factory=list)
     synthetic_data: bool = False
     collected_at: str | None = None
+    addressing: str | None = None
     generation_mode: Literal["llm", "deterministic", "none"] = "none"
     model_id: str | None = None
     fact_ledger: list[Fact] = Field(default_factory=list)

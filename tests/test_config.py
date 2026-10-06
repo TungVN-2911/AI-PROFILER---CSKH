@@ -89,7 +89,8 @@ def test_api_key_never_in_repr_or_str():
     assert SECRET not in s.model_dump_json()
 
 
-def test_dotenv_file_is_read_and_env_wins(tmp_path):
+def test_dotenv_file_is_read_and_env_wins(tmp_path, monkeypatch):
+    monkeypatch.delenv("PROFILER_NO_DOTENV", raising=False)  # conftest disables .env for every other test
     dotenv = tmp_path / ".env"
     dotenv.write_text("LLM_MAX_RETRIES=0\nDEFAULT_MESSAGE_COUNT=6\n", encoding="utf-8")
     s = load_settings(env={"DEFAULT_MESSAGE_COUNT": "8"}, dotenv_path=dotenv)
@@ -102,3 +103,21 @@ def test_config_module_does_not_import_provider_sdk():
 
     source = open(config.__file__, encoding="utf-8").read()
     assert "import anthropic" not in source
+
+
+def test_provider_defaults_and_validation():
+    s = load({})
+    assert s.llm_provider == "auto" and s.gemini_model == "gemini-3.8-flash"
+    assert s.resolved_provider is None and s.active_model is None
+    with pytest.raises(ConfigError) as exc:
+        load({"LLM_PROVIDER": "openai"})
+    assert "LLM_PROVIDER" in str(exc.value)
+
+
+def test_profiler_no_dotenv_ignores_env_file(tmp_path, monkeypatch):
+    dotenv = tmp_path / ".env"
+    dotenv.write_text("GEMINI_API_KEY=real-key-from-file", encoding="utf-8")
+    monkeypatch.setenv("PROFILER_NO_DOTENV", "1")
+    assert load_settings(env={}, dotenv_path=dotenv).gemini_api_key is None
+    monkeypatch.delenv("PROFILER_NO_DOTENV")
+    assert load_settings(env={}, dotenv_path=dotenv).gemini_api_key.get_secret_value() == "real-key-from-file"
