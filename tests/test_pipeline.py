@@ -109,6 +109,40 @@ def test_insufficient_data(tmp_path):
     assert result.evidence.access_state.value == "PUBLIC" and len(result.evidence.fact_ledger) == 2
 
 
+def test_live_meta_bio_clauses_pass_sufficiency_gate_without_image():
+    body = """<html><head>
+    <meta property="og:title" content="Trinh Trinh | Facebook">
+    <meta property="og:description" content="16.191 người theo dõi · 19.004 người đang nói về điều này. Người sáng tạo nội dung số">
+    </head></html>"""
+    result = run(
+        "https://www.facebook.com/live.user",
+        **live(lambda request: httpx.Response(200, text=body, headers={"content-type": "text/html"})),
+    )
+    assert_partial(result, "NO_IMAGE:")
+    bio_facts = [fact for fact in result.evidence.fact_ledger if fact.category == "bio"]
+    assert len(bio_facts) == 3
+    assert [fact.statement for fact in bio_facts] == [
+        "16.191 người theo dõi",
+        "19.004 người đang nói về điều này",
+        "Người sáng tạo nội dung số",
+    ]
+
+
+def test_explicit_profile_file_takes_precedence_over_live_fetch(tmp_path):
+    path, url = write_profile(tmp_path, display_name="Dữ liệu đã cung cấp", bio="Yêu mèo")
+
+    def fail_live_source(request):
+        raise AssertionError(f"live source should not be called: {request.url}")
+
+    result = run(
+        url,
+        PipelineOptions(mode="deterministic", profile_file=path, live=True),
+        http_transport=httpx.MockTransport(fail_live_source),
+    )
+    assert result.evidence.sources_used == ["profile_file"]
+    assert result.evidence.fact_ledger[0].statement == "Dữ liệu đã cung cấp"
+
+
 FAKE_PNG = bytes([0x89]) + b"PNG" + bytes([0x0D, 0x0A, 0x1A, 0x0A]) + b"0000"
 ENOUGH_FACTS = dict(display_name="Lan Chi", bio="Yêu mèo và trà chiều", public_info={"current_city": "Huế"})
 

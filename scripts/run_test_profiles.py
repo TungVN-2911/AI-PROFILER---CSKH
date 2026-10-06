@@ -6,7 +6,8 @@ Per-case files go to runs/test_run/<case>/ (git-ignored).
 
 Real profiles with consent:
         python scripts/run_test_profiles.py --profiles-dir runs/real [--results FILE] [--runs-dir DIR]
-Runs every *.json profile file in the folder (see scripts/new_profile.py) and writes runs/test_results_real.json.
+Runs every *.json profile file in the folder (see scripts/new_profile.py) and creates a timestamped,
+per-run folder under runs/real_run/. An explicitly supplied --results path is updated on each run.
 Committed artifacts (test_results.json, output.json, evidence.json) are never touched in this mode.
 """
 
@@ -164,10 +165,10 @@ def real_profile_results(profiles_dir: Path, llm_available: bool, run_dir: Path)
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description="Run test profiles through the CLI and record the results.")
     parser.add_argument("--profiles-dir", type=Path, help="folder of consented real profile files (*.json)")
-    parser.add_argument("--results", type=Path, default=ROOT / "runs" / "test_results_real.json",
-                        help="results file for --profiles-dir (default: runs/test_results_real.json)")
+    parser.add_argument("--results", type=Path,
+                        help="results file for --profiles-dir (default: per-run timestamped file)")
     parser.add_argument("--runs-dir", type=Path, default=ROOT / "runs" / "real_run",
-                        help="per-profile outputs for --profiles-dir (default: runs/real_run)")
+                        help="base folder for per-run, per-profile outputs (default: runs/real_run)")
     args = parser.parse_args(argv)
 
     settings = load_settings()
@@ -177,10 +178,15 @@ def main(argv: list[str] | None = None) -> int:
         if not args.profiles_dir.is_dir():
             print(f"Không tìm thấy thư mục: {args.profiles_dir}", file=sys.stderr)
             return 2
-        results = real_profile_results(args.profiles_dir, llm_available, args.runs_dir)
+        run_id = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%S.%fZ")
+        run_dir = args.runs_dir / run_id
+        results_path = args.results or run_dir / "test_results_real.json"
+        results = real_profile_results(args.profiles_dir, llm_available, run_dir)
         report = _report(results, settings, REAL_NOTE)
-        args.results.parent.mkdir(parents=True, exist_ok=True)
-        args.results.write_text(json.dumps(report, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+        results_path.parent.mkdir(parents=True, exist_ok=True)
+        results_path.write_text(json.dumps(report, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+        print(f"Lưu lượt chạy tại: {run_dir}", file=sys.stderr)
+        print(f"Báo cáo: {results_path}", file=sys.stderr)
     else:
         results = [run_case(case, llm_available) for case in CASES]
         public = RUN_DIR / "public_rich"

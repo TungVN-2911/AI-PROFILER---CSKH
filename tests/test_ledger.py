@@ -83,6 +83,33 @@ def test_source_prefix_uses_collection_method():
     assert build_ledger(raw(display_name="A")).facts[0].source == "provided:display_name"
 
 
+def test_live_meta_bio_is_split_into_independent_verbatim_facts():
+    ledger = build_ledger(raw(
+        display_name="Trinh Trinh",
+        bio="16.191 người theo dõi · 19.004 người đang nói về điều này. Người sáng tạo nội dung số",
+        collection_method="live_meta",
+    ))
+    bio_facts = [fact for fact in ledger.facts if fact.category == "bio"]
+    assert [fact.statement for fact in bio_facts] == [
+        "16.191 người theo dõi",
+        "19.004 người đang nói về điều này",
+        "Người sáng tạo nội dung số",
+    ]
+    assert [fact.source for fact in bio_facts] == [
+        "live_meta:bio[0]",
+        "live_meta:bio[1]",
+        "live_meta:bio[2]",
+    ]
+    assert len(ledger.usable_facts()) == 3
+    assert evaluate_sufficiency(AccessState.PUBLIC, ledger, SETTINGS).ok
+
+
+def test_provided_bio_is_not_split():
+    bio = "Yêu mèo. Thích đọc sách."
+    ledger = build_ledger(raw(display_name="A", bio=bio))
+    assert [fact.statement for fact in ledger.facts if fact.category == "bio"] == [bio]
+
+
 # --- Sufficiency gate ---------------------------------------------------------------------------
 
 

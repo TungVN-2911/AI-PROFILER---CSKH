@@ -9,9 +9,11 @@ from __future__ import annotations
 import argparse
 import logging
 import sys
+from datetime import datetime, timezone
 from pathlib import Path
 
 from app.config import ConfigError, load_settings
+from app.input import InputError, validate_profile_url
 from app.output import serialize_evidence, serialize_output, write_text
 from app.pipeline import EXIT_INPUT, EXIT_INTERNAL, PipelineOptions, PipelineResult, run_pipeline
 from app.schema import EvidenceReport, PartialOutput
@@ -71,6 +73,7 @@ def _error_result(url: str, note: str, exit_code: int) -> PipelineResult:
 def run(argv: list[str] | None = None) -> int:
     parser = build_parser()
     output_path, evidence_path = Path("output.json"), Path("evidence.json")
+    profile_file: Path | None = None
     try:
         args = parser.parse_args(argv)
     except _UsageError as exc:
@@ -79,6 +82,7 @@ def run(argv: list[str] | None = None) -> int:
     else:
         _configure_streams(args.verbose)
         output_path, evidence_path = args.output, args.evidence
+        profile_file = args.profile_file
         try:
             overrides = {"default_message_count": args.messages} if args.messages is not None else None
             settings = load_settings(overrides)
@@ -92,7 +96,25 @@ def run(argv: list[str] | None = None) -> int:
     exit_code = result.exit_code
     try:
         write_text(output_path, document)
-        write_text(evidence_path, serialize_evidence(result.evidence))
+        evidence_document = serialize_evidence(result.evidence)
+        write_text(evidence_path, evidence_document)
+
+        if (
+            profile_file is not None
+            and output_path == Path("output.json")
+            and evidence_path == Path("evidence.json")
+            and not result.evidence.synthetic_data
+        ):
+            try:
+                identifier = validate_profile_url(result.evidence.facebook_url).identifier
+            except InputError:
+                identifier = None
+            if identifier is not None:
+                run_id = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%S.%fZ")
+                archive_dir = Path("runs") / "real_runs" / identifier / run_id
+                write_text(archive_dir / "output.json", document)
+                write_text(archive_dir / "evidence.json", evidence_document)
+                log.info("archived real-profile result to %s", archive_dir)
     except OSError as exc:
         log.error("could not write output files: %s", exc)
         exit_code = EXIT_INTERNAL

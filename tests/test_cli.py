@@ -100,6 +100,38 @@ def test_custom_output_paths_and_profile_file(tmp_path):
     assert not (tmp_path / "output.json").exists()
 
 
+def test_real_profile_default_outputs_are_archived_per_profile_and_run(tmp_path):
+    profile = tmp_path / "real.json"
+    data = {
+        "facebook_url": "https://www.facebook.com/tmp.user",
+        "synthetic": False,
+        "display_name": "Lan Chi",
+    }
+    profile.write_text(json.dumps(data, ensure_ascii=False), encoding="utf-8")
+
+    first_code, _, _ = cli(
+        tmp_path, "--url", "https://www.facebook.com/tmp.user", "--profile-file", str(profile)
+    )
+    assert first_code == 0
+    first_archive = next((tmp_path / "runs" / "real_runs" / "tmp.user").iterdir())
+
+    data["display_name"] = "Mai Chi"
+    profile.write_text(json.dumps(data, ensure_ascii=False), encoding="utf-8")
+    second_code, _, _ = cli(
+        tmp_path, "--url", "https://www.facebook.com/tmp.user", "--profile-file", str(profile)
+    )
+    assert second_code == 0
+
+    archives = list((tmp_path / "runs" / "real_runs" / "tmp.user").iterdir())
+    assert len(archives) == 2 and first_archive in archives
+    archived_names = {
+        read(archive / "evidence.json")["fact_ledger"][0]["statement"]
+        for archive in archives
+    }
+    assert archived_names == {"Lan Chi", "Mai Chi"}
+    assert read(tmp_path / "evidence.json")["fact_ledger"][0]["statement"] == "Mai Chi"
+
+
 def test_private_profile_is_partial_exit_0(tmp_path):
     code, out, _ = cli(tmp_path, "--url", "https://www.facebook.com/fixture.private.user")
     assert code == 0 and json.loads(out)["error_note"].startswith("PRIVATE_PROFILE:")
