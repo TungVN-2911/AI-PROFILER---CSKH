@@ -31,6 +31,8 @@ ENV_VARS: dict[str, str] = {
     "profile_store_dir": "PROFILE_STORE_DIR",
     "min_grounding_facts": "MIN_GROUNDING_FACTS",
     "default_message_count": "DEFAULT_MESSAGE_COUNT",
+    "facebook_cookie": "FACEBOOK_COOKIE",
+    "selenium_headless": "SELENIUM_HEADLESS",
 }
 
 
@@ -57,6 +59,16 @@ class Settings(BaseModel):
     profile_store_dir: Path = Field(default=Path("fixtures/profiles"), validate_default=True)
     min_grounding_facts: int = Field(default=2, ge=1)
     default_message_count: int = Field(default=10, ge=5, le=10)
+    facebook_cookie: SecretStr | None = None
+    selenium_headless: bool = True
+
+    @field_validator("selenium_headless", mode="before")
+    @classmethod
+    def _parse_headless_bool(cls, value: Any) -> bool:
+        """Chuyển đổi chuỗi văn bản thô từ file .env thành kiểu dữ liệu Boolean hợp lệ."""
+        if isinstance(value, str):
+            return value.strip().lower() in {"1", "true", "yes", "on"}
+        return bool(value)
 
     @field_validator("profile_store_dir")
     @classmethod

@@ -1,0 +1,5 @@
+{
+  "status": "PARTIAL_OR_PRIVATE",
+  "facebook_url": "https://www.facebook.com/thao.vy.664106",
+  "error_note": "TECHNICAL LIMITATION: Facebook trả về trang đăng nhập/xác minh (checkpoint) cho trang cá nhân này. Agent không đăng nhập hay vượt qua cơ chế kiểm soát truy cập. Hãy cung cấp dữ liệu qua --profile-file. | Thiếu thiết lập Token Cookie."
+}

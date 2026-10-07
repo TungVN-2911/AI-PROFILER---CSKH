@@ -154,9 +154,10 @@ def _run(
 
     if acq is None and public_browser:
         try:
-            acq = FacebookSeleniumSource(enabled=True).acquire(url)
+            acq = FacebookSeleniumSource(enabled=True, settings=settings).acquire(url)
         except SourceError:
             acq = None
+
 
     if acq is None and live:
         try:
