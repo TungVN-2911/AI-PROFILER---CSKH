@@ -91,6 +91,13 @@ def _allowed_in_facts(term: str, cited: list[Fact]) -> bool:
     return any(term_cf in f.statement.casefold() for f in cited)
 
 
+def _customer_written(cited: list[Fact]) -> list[Fact]:
+    """Facts the customer actually wrote — not AI vision observations (INFERENCE) describing the photo.
+    A beauty/pharma word is tolerated only when the customer themselves used it, never because the vision
+    model happened to mention e.g. the customer's hair."""
+    return [f for f in cited if f.epistemic_status is EpistemicStatus.FACT and f.category != "visual_observation"]
+
+
 _FACT_ID = re.compile(r"\bF\d+\b")
 
 
@@ -127,7 +134,7 @@ def check_text(text: str, location: str, cited: list[Fact] | None = None) -> lis
     for term in hard:
         out.append(Violation("PRODUCT_TOPIC", location, f"product-domain topic '{term}' must never appear"))
     for term in soft:
-        if not _allowed_in_facts(term, cited):
+        if not _allowed_in_facts(term, _customer_written(cited)):
             out.append(Violation("PRODUCT_TOPIC", location, f"beauty/pharma term '{term}' is only allowed when the customer wrote it"))
     for pattern, code in (
         (PRICE_PATTERN, "PRICE"),
@@ -227,7 +234,7 @@ def validate_draft(draft: EngagementDraft, ledger: FactLedger) -> list[Violation
     if not MIN_MESSAGES <= n <= MAX_MESSAGES:
         out.append(Violation("MESSAGE_COUNT", "messages", f"{n} messages (must be {MIN_MESSAGES}–{MAX_MESSAGES})"))
 
-    out += _check_cited(draft.core_empathy_angle, "core_empathy_angle", ledger)
+    out += _check_cited(draft.core_empathy_angle, "core_empathy_angle", ledger, forbid_fact_ids=True)
     out += _check_cited(draft.evening_hook, "evening_hook", ledger, forbid_fact_ids=True)
 
     seen: set[str] = set()
