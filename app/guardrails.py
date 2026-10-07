@@ -91,6 +91,20 @@ def _allowed_in_facts(term: str, cited: list[Fact]) -> bool:
     return any(term_cf in f.statement.casefold() for f in cited)
 
 
+_FACT_ID = re.compile(r"\bF\d+\b")
+
+
+def _fact_id_leak(text: str, cited: list[Fact], location: str) -> list[Violation]:
+    """Internal ledger ids (F1, F2, …) must never appear in text sent to the customer, unless the customer
+    themselves wrote the token (then it is part of a cited fact)."""
+    out: list[Violation] = []
+    for m in _FACT_ID.finditer(text):
+        token = m.group(0)
+        if not _allowed_in_facts(token, cited):
+            out.append(Violation("RAW_FACT_ID", location, f"internal fact id '{token}' must not appear in a customer message"))
+    return out
+
+
 def check_text(text: str, location: str, cited: list[Fact] | None = None) -> list[Violation]:
     """Zero-sales, contact/price, presumption and sensitive-attribute checks for one text."""
     cited = cited or []
@@ -194,12 +208,14 @@ def _grounding(facts: list[Fact]) -> list[Fact]:
     return [f for f in facts if f.category != "name"]
 
 
-def _check_cited(item: CitedText, location: str, ledger: FactLedger) -> list[Violation]:
+def _check_cited(item: CitedText, location: str, ledger: FactLedger, *, forbid_fact_ids: bool = False) -> list[Violation]:
     facts, out = _resolve(item.fact_ids, ledger, location)
     if not _grounding(facts):
         out.append(Violation("MISSING_CITATION", location, "must cite at least one usable fact"))
     out += check_text(item.text, location, facts)
     out += check_entities(item.text, location, facts, ledger.name_fact())
+    if forbid_fact_ids:
+        out += _fact_id_leak(item.text, facts, location)
     return out
 
 
@@ -212,7 +228,7 @@ def validate_draft(draft: EngagementDraft, ledger: FactLedger) -> list[Violation
         out.append(Violation("MESSAGE_COUNT", "messages", f"{n} messages (must be {MIN_MESSAGES}–{MAX_MESSAGES})"))
 
     out += _check_cited(draft.core_empathy_angle, "core_empathy_angle", ledger)
-    out += _check_cited(draft.evening_hook, "evening_hook", ledger)
+    out += _check_cited(draft.evening_hook, "evening_hook", ledger, forbid_fact_ids=True)
 
     seen: set[str] = set()
     grounded_count = 0
@@ -235,6 +251,7 @@ def validate_draft(draft: EngagementDraft, ledger: FactLedger) -> list[Violation
                 out.append(Violation("NEUTRAL_CLAIM", loc, "neutral message asserts something about the customer"))
         out += check_text(msg.text, loc, facts)
         out += check_entities(msg.text, loc, facts, name)
+        out += _fact_id_leak(msg.text, facts, loc)
         key = msg.text.strip().casefold()
         if key in seen:
             out.append(Violation("DUPLICATE_MESSAGE", loc, "same text as an earlier message"))
