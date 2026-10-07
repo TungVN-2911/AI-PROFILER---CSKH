@@ -89,6 +89,11 @@ def test_raw_fact_id_in_hook_is_rejected():
     assert "RAW_FACT_ID" in codes(v)
 
 
+def test_raw_fact_id_in_angle_is_rejected():
+    v = validate_draft(draft(lambda d: d["core_empathy_angle"].update(text="Niềm vui chạy bộ của bạn ở F9 thật đáng quý", fact_ids=["F9"])), LEDGER)
+    assert "RAW_FACT_ID" in codes(v)
+
+
 def test_fact_id_tokens_are_allowed_in_lifestyle_provenance():
     # apparent_lifestyle intentionally cites ids as provenance, e.g. "(dựa trên F5, F6)".
     d = draft(lambda d: d.update(apparent_lifestyle={"text": "INFERENCE: lối sống năng động (dựa trên F5, F6)", "fact_ids": ["F5", "F6"]}))
@@ -290,6 +295,13 @@ def test_soft_product_terms_allowed_only_when_self_declared():
     assert check_text("Công việc dược sĩ chắc nhiều điều thú vị nhỉ chị?", "m", [work]) == []
     assert "PRODUCT_TOPIC" in codes(check_text("Công việc dược sĩ chắc nhiều điều thú vị nhỉ chị?", "m"))
     assert "PRODUCT_TOPIC" in codes(check_text("Mái tóc của chị đẹp quá!", "m"))
+
+
+def test_soft_product_term_from_vision_observation_is_not_allowed():
+    # The vision model mentioning the customer's hair must not license a hair-topic message (Dr.Bee domain):
+    # a beauty/pharma word counts only when the customer wrote it, not when the AI described the photo.
+    ledger, obs = append_fact(LEDGER, "visual_observation", "Ảnh có vẻ cho thấy mái tóc dài gợn sóng", "vision:avatar", EpistemicStatus.INFERENCE, 0.9)
+    assert "PRODUCT_TOPIC" in codes(check_text("Trong ảnh có mái tóc dài gợn sóng nhìn thật cuốn hút.", "m", [obs]))
 
 
 def test_no_brand_or_product_false_positive_on_any_fixture():
