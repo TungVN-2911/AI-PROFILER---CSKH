@@ -30,7 +30,6 @@ from app.schema import MAX_MESSAGES, MIN_MESSAGES
 
 MAX_MESSAGE_CHARS = 400
 # Work-related evening phrases are fine when a work fact is cited.
-WORK_PRESUMPTIONS = frozenset({"sau giờ làm", "tan làm", "đi làm về", "sau một ngày", "áp lực"})
 _QUESTION_SAFE_PRESUMPTION = re.compile(r"^tối nay \w+ (?:có|định)$")
 ALWAYS_ALLOWED_WORDS = frozenset({"facebook"})
 
@@ -81,6 +80,10 @@ _NEUTRAL_CLAIM = re.compile(
 # A sentence also ends after a closing quote that follows end punctuation: `… ghê.” Chuyện …`.
 _SENTENCE_SPLIT = re.compile(r"(?<=[.!?…:\n])\s+|(?<=[.!?…][”\"’)])\s+")
 _WORD = re.compile(r"\w+", re.UNICODE)
+_PLACEHOLDER_NOISE = re.compile(
+    r"\blần thứ\s+(?:n|x|\[.*?\]|<.*?>)(?!\w)|\b(?:undefined|null)\b",
+    re.IGNORECASE,
+)
 
 
 def _allowed_in_facts(term: str, cited: list[Fact]) -> bool:
@@ -92,6 +95,14 @@ def check_text(text: str, location: str, cited: list[Fact] | None = None) -> lis
     """Zero-sales, contact/price, presumption and sensitive-attribute checks for one text."""
     cited = cited or []
     out: list[Violation] = []
+    if _PLACEHOLDER_NOISE.search(text):
+        out.append(
+            Violation(
+                "LOW_QUALITY_PLACEHOLDER",
+                location,
+                "contains an incomplete placeholder or literal null value",
+            )
+        )
     for term in find_sales_terms(text):
         if not _allowed_in_facts(term, cited):
             out.append(Violation("SALES_TERM", location, f"commercial term '{term}'"))
@@ -121,16 +132,14 @@ def check_text(text: str, location: str, cited: list[Fact] | None = None) -> lis
             # Quoting the customer's own words (e.g. a post saying "mệt mỏi") is grounded, not presumed.
             if _allowed_in_facts(phrase, cited):
                 continue
-            if cites_work and (p in WORK_PRESUMPTIONS or p.endswith("đang làm")):
+            if cites_work and p.endswith("đang làm"):
                 continue
             # Asking "Tối nay bạn có định … không?" is a question, not a presumption.
             if is_question and _QUESTION_SAFE_PRESUMPTION.match(p):
                 continue
             out.append(Violation("PRESUMPTION", location, f"presumes the customer's situation: '{phrase}'"))
-    # Family topics are fine when a cited fact is itself about family; other categories need the exact term.
-    cited_categories = {category for f in cited for category, _ in find_sensitive(f.statement)}
     for category, term in find_sensitive(text):
-        if _allowed_in_facts(term, cited) or (category == "family_relationship" and category in cited_categories):
+        if _allowed_in_facts(term, cited):
             continue
         out.append(Violation("SENSITIVE_TERM", location, f"sensitive attribute ({category}): '{term}'"))
     if len(text) > MAX_MESSAGE_CHARS:
@@ -207,6 +216,7 @@ def validate_draft(draft: EngagementDraft, ledger: FactLedger) -> list[Violation
 
     seen: set[str] = set()
     grounded_count = 0
+    visual_message_count = 0
     for i, msg in enumerate(draft.messages):
         loc = f"messages[{i}]"
         facts, errors = _resolve(msg.fact_ids, ledger, loc)
@@ -214,6 +224,8 @@ def validate_draft(draft: EngagementDraft, ledger: FactLedger) -> list[Violation
         if msg.kind == "grounded":
             if _grounding(facts):
                 grounded_count += 1
+                if any(f.category == "visual_observation" for f in facts):
+                    visual_message_count += 1
             else:
                 out.append(Violation("MISSING_CITATION", loc, "grounded message must cite at least one usable fact"))
         else:
@@ -227,6 +239,11 @@ def validate_draft(draft: EngagementDraft, ledger: FactLedger) -> list[Violation
         if key in seen:
             out.append(Violation("DUPLICATE_MESSAGE", loc, "same text as an earlier message"))
         seen.add(key)
+
+    if visual_message_count > 1:
+        out.append(
+            Violation("REPEATED_IMAGE_FOCUS", "messages", "at most one message may focus on visual observations")
+        )
 
     usable = len(ledger.usable_facts())
     if usable >= 3 and n and grounded_count < math.ceil(n / 2):

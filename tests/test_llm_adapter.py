@@ -99,7 +99,7 @@ def test_fake_raises_queued_error_and_exhaustion():
 
 
 def test_fake_vision():
-    fake = FakeLLMClient(vision_responses=[{"image_usable": True, "observations": [{"text": "appears to show a bicycle", "confidence": 0.9}]}])
+    fake = FakeLLMClient(vision_responses=[{"image_usable": True, "observations": [{"text": "appears to show a bicycle", "confidence": 0.9}], "estimate": None}])
     result = fake.describe_image(image_bytes=b"\x89PNG", media_type="image/png", instructions="i")
     assert isinstance(result, VisionResult) and result.observations[0].confidence == 0.9
 
@@ -159,7 +159,7 @@ def test_adapter_omits_fallbacks_for_other_models():
 
 
 def test_adapter_image_request():
-    stub = StubSDK(reply(json.dumps({"image_usable": True, "observations": []})))
+    stub = StubSDK(reply(json.dumps({"image_usable": True, "observations": [], "estimate": None})))
     result = adapter(stub).describe_image(image_bytes=b"abc", media_type="image/jpeg", instructions="RULES")
     assert result.image_usable is True
     content = stub.kwargs["messages"][0]["content"]

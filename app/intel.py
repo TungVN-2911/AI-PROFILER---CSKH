@@ -5,11 +5,13 @@
 - estimated_age_range: arithmetic on a stated birth year, else a perceived apparent-age estimate (labelled
   INFERENCE), else UNKNOWN.
 - apparent_lifestyle: a labelled INFERENCE citing the facts it rests on, or UNKNOWN.
-Self-declared data always wins over perceived estimates; model-generated visual observations are never used.
+Self-declared data always wins over perceived estimates; model-generated visual observations are never used. Perceived
+gender estimates are not used to choose a form of address.
 """
 
 from __future__ import annotations
 
+import re
 from dataclasses import dataclass, field
 from datetime import date
 
@@ -143,7 +145,15 @@ def derive_lifestyle(ledger: FactLedger) -> tuple[str, list[str]]:
         parts.append("công việc: " + work[0].statement)
     used = interests + work
     if not used:
-        bio = _facts(ledger, "bio")[:1]
+        bio = [
+            fact
+            for fact in _facts(ledger, "bio")
+            if not re.search(
+                r"\b(?:người theo dõi|followers|người đang nói về điều này|people talking about this)\b",
+                fact.statement,
+                re.IGNORECASE,
+            )
+        ][:1]
         if not bio:
             return UNKNOWN, []
         parts.append("tự giới thiệu: " + bio[0].statement)
@@ -153,7 +163,7 @@ def derive_lifestyle(ledger: FactLedger) -> tuple[str, list[str]]:
 
 
 def derive_addressing(ledger: FactLedger) -> Addressing:
-    """chị/anh – em from self-declared gender or pronouns, else a confident perceived estimate; else bạn – mình."""
+    """Use familiar address only when gender or pronouns were self-declared."""
     declared = _facts(ledger, "gender")
     if declared:
         label = _GENDER_LABELS.get(declared[0].statement.strip().casefold())
@@ -166,10 +176,6 @@ def derive_addressing(ledger: FactLedger) -> Addressing:
         if first in _PRONOUN_ADDRESS:
             return Addressing(_PRONOUN_ADDRESS[first], "em", f"đại từ tự khai báo {pronouns[0].statement} [{pronouns[0].id}]")
         return NEUTRAL_ADDRESSING
-    perceived = _estimate(ledger, "perceived_gender")
-    if perceived and perceived.statement in ("female", "male"):
-        customer = "chị" if perceived.statement == "female" else "anh"
-        return Addressing(customer, "em", f"ước lượng từ {_image_kind(perceived)}, độ tin cậy {perceived.confidence:.2f} [{perceived.id}]")
     return NEUTRAL_ADDRESSING
 
 

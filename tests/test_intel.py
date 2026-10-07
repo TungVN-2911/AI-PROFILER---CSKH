@@ -79,6 +79,13 @@ def test_lifestyle_falls_back_to_bio_then_unknown():
     assert with_bio.apparent_lifestyle.startswith("INFERENCE: ") and "Yêu mèo và trà chiều" in with_bio.apparent_lifestyle
     nothing = intel_for(raw(public_info={"current_city": "Huế"}))
     assert nothing.apparent_lifestyle == UNKNOWN and nothing.lifestyle_fact_ids == []
+    metrics = raw(
+        collection_method="live_meta",
+        bio="18.000 người theo dõi · 900 người đang nói về điều này",
+    )
+    metric_intel = intel_for(metrics)
+    assert metric_intel.apparent_lifestyle == UNKNOWN
+    assert metric_intel.lifestyle_fact_ids == []
 
 
 def test_missing_name_is_none():
@@ -151,9 +158,9 @@ def test_addressing_from_self_declared_data(public_info, expected):
     assert (a.customer, a.agent) == expected
 
 
-def test_addressing_from_perceived_estimate_and_precedence():
+def test_addressing_uses_self_declaration_but_never_perceived_estimates():
     perceived = derive_addressing(with_estimates(raw(), gender=("male", 0.9), age=None))
-    assert (perceived.customer, perceived.agent) == ("anh", "em") and "ước lượng từ ảnh đại diện" in perceived.basis
+    assert perceived == NEUTRAL_ADDRESSING
     declared_wins = derive_addressing(with_estimates(raw(public_info={"gender": "Nữ"}), gender=("male", 0.9), age=None))
     assert declared_wins.customer == "chị"
     pronouns_win = derive_addressing(with_estimates(raw(public_info={"pronouns": "they/them"}), gender=("female", 0.9), age=None))

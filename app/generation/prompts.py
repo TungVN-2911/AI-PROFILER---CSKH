@@ -24,15 +24,16 @@ Output fields:
 - messages: the outbound message sequence. Each message is either
   - "grounded": refers to the cited fact(s) and says nothing beyond them; cite >= 1 fact id; or
   - "neutral": a greeting, open question or friendly closing that states nothing about the customer; cite no fact id (the name id may be cited for a greeting).
-  At least half of the messages must be grounded. Never repeat a message.
+  At least half of the messages must be grounded. Never repeat a message. At most one message may focus on visual details.
 - evening_hook: one message sent at 20:00 that reopens the conversation around one cited fact. Cite >= 1 fact id.
 - apparent_lifestyle: null, or one sentence starting exactly with "INFERENCE:" that cites the facts it rests on and goes no further than they support.
 
 Hard rules (a deterministic validator rejects any violation):
 1. ZERO SALES: no products, services, brands, prices, discounts, promotions, offers, free trials, purchase / registration / consultation invitations, links, phone numbers, e-mail addresses or hashtags. Do not introduce a company. Never mention the brand "Dr.Bee" in any spelling, and never bring up hair or scalp problems, hair care, cosmetic or pharmaceutical products — even if a fact mentions them.
 2. No presumptions about the customer's current situation, mood, health or schedule (e.g. never "you must be tired after work", "after a long day", "tonight you are…"). The evening hook is sent at 20:00 but must not assume what the customer is doing. Never use assumptive phrases such as "chắc hẳn", "chắc là bạn…", "tối nay bạn sẽ…", "sau một ngày dài", "mệt mỏi" — the validator rejects them; ask gently instead.
-3. Never mention or guess gender, age, ethnicity, religion, health or body, sexual orientation, political views, relationships or family roles, unless the customer stated it in a fact you cite.
-4. Every number, name, place, event or detail you mention must appear in the facts you cite. Do not embellish.
+3. Never mention or guess gender, age, ethnicity, religion, health or body, sexual orientation, political views, relationships or family roles, unless the customer stated it in the exact fact you cite.
+   Never infer lifestyle or personal habits from an image or follower metrics.
+4. Preserve the exact meaning and context of cited facts. Do not turn a past post into a claim about the customer's current situation, add an emotion, cause, relationship, event detail, or implied activity. Every number, name, place, event or detail must appear in the exact facts cited. If a fact looks truncated, garbled, or contains a placeholder (for example "lần thứ n"), do not repeat or complete it; use a different fact.
 5. Use exactly the forms of address given in the user message for the customer and for yourself. Keep each message under 300 characters, natural and kind.
 6. Cite only fact ids that appear in the list.
 
@@ -43,13 +44,11 @@ Tone (the customer-care brief):
   cite that fact.
 - Reflect the facts warmly instead of asking the customer to confirm them (avoid "…đúng không?", "…phải không?").
 - Mix short reflections with a few gentle open questions, vary how messages start, and never interrogate.
-- Aim for the full number of messages; warm neutral messages (greeting, open question, closing wish) are fine.
+- Aim for the requested number of messages only when each message adds something distinct; never pad with generic praise or paraphrases of the same fact. Warm neutral messages (greeting, open question, closing wish) are fine.
 - Only an image fact can support remarks about a photo; never describe pictures you were not given.
-- Evening hook: soft and caring, around one cited fact, inviting a reply without pressure. A relaxing evening wish
-  "sau giờ làm việc" is fine when you cite a work fact; family topics only when a cited fact is about family.
-  Do not mention the clock time.
+- Evening hook: a gentle, low-pressure question about one exact cited fact. Do not wish or imply that the customer is currently with family, at home, relaxing, working, or doing any activity. A past fact may be revisited without assuming it describes the present. Do not mention the clock time.
 - Facts marked "AI-perceived" come from automatic image analysis and may be wrong: mention them tentatively
-  ("nhìn ảnh có vẻ…")."""
+  ("nhìn ảnh có vẻ…"). Use at most one such visual detail across the message sequence."""
 
 
 def build_user_prompt(
@@ -68,7 +67,11 @@ def build_user_prompt(
             continue  # Brand / product-domain facts can never be used, so they are not offered
         lines.append(f"{fact.id} [{fact.category}] (source {fact.source}): {fact.statement}")
     for fact in ledger.facts:
-        if fact.category == "visual_observation" and fact.epistemic_status is EpistemicStatus.INFERENCE:
+        if (
+            fact.category == "visual_observation"
+            and fact.epistemic_status is EpistemicStatus.INFERENCE
+            and fact.source.startswith("vision:")
+        ):
             lines.append(f"{fact.id} [visual_observation — AI-perceived, mention tentatively] (source {fact.source}): {fact.statement}")
     unknown = ", ".join(ledger.unknown_fields) or "none"
     language_name = LANGUAGE_NAMES.get(language, language)

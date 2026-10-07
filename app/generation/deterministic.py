@@ -34,7 +34,7 @@ GREETING_NEUTRAL = "Chào {name}, mình rất vui được làm quen với bạn
 GREETING_POLITE = "{Me} chào {you} {name}, {me} rất vui được làm quen với {you} ạ!"
 # The first message mentions a first impression of the profile picture when an image description exists.
 AVATAR_IMPRESSION = "{Me} vừa ghé thăm trang cá nhân của {you}, ấn tượng đầu tiên là tấm ảnh đại diện nhìn thật dễ mến."
-ANGLE = "Trân trọng những niềm vui và nỗ lực mà {you} ấy tự chia sẻ: {s}"
+ANGLE = "{Me} trân trọng chia sẻ của {you}: {s}"
 
 _QUOTE_SLOT = "\ue000"
 
@@ -80,12 +80,7 @@ HOOK_TOPICS = {
     "location": "{s}, nơi {you} đang sống",
     "other": "điều {you} từng chia sẻ: “{s}”",
 }
-HOOK = "Buổi tối an lành nhé {you}! {Me} chợt nhớ tới {topic}. Khi nào thư thả, {you} kể {me} nghe thêm nhé, {me} luôn sẵn lòng lắng nghe."
-# Work-related evening wish; allowed only because the work fact is cited.
-HOOK_WORK = (
-    "Buổi tối an lành nhé {you}! {Me} chúc {you} có những phút thư giãn thật trọn vẹn sau giờ làm việc với “{s}”. "
-    "Khi nào thư thả, {you} kể {me} nghe điều gì khiến {you} vui nhất trong công việc nhé!"
-)
+HOOK = "Buổi tối an lành nhé {you}! {Me} chợt nhớ tới {topic}. Nếu {you} muốn, {you} kể {me} nghe thêm về điều đó nhé."
 
 
 def _render_message(fact: Fact, variant: int, addressing: Addressing) -> str:
@@ -102,8 +97,6 @@ def _render_message(fact: Fact, variant: int, addressing: Addressing) -> str:
 
 
 def _render_hook(fact: Fact, addressing: Addressing) -> str:
-    if fact.category == "work":
-        return _fill(HOOK_WORK, addressing, _clip(fact.statement))
     key = "hometown" if fact.category == "location" and fact.source.endswith("hometown") else fact.category
     topic = HOOK_TOPICS.get(key, HOOK_TOPICS["other"])
     return _fill(HOOK.replace("{topic}", topic), addressing, _clip(fact.statement))
@@ -155,7 +148,12 @@ def _grounded_candidates(ledger: FactLedger, addressing: Addressing) -> list[tup
     ordered = sorted(usable, key=lambda f: (CATEGORY_ORDER.index(f.category) if f.category in CATEGORY_ORDER else 99, int(f.id[1:])))
     out = []
     per_category: dict[str, int] = {}
+    visual_used = False
     for fact in ordered:
+        if fact.category == "visual_observation":
+            if visual_used:
+                continue
+            visual_used = True
         variant = per_category.get(fact.category, 0)
         text = _message_for(fact, variant, addressing)
         if _passes(text, fact, ledger, "messages"):
@@ -169,8 +167,8 @@ def generate_deterministic(
 ) -> EngagementDraft:
     """Build a draft from the ledger. Raises ValueError if there is nothing usable to ground on."""
     candidates = _grounded_candidates(ledger, addressing)
-    if not candidates:
-        raise ValueError("không có thông tin nào dùng được làm căn cứ cho tin nhắn")
+    if len(candidates) < 2:
+        raise ValueError("cần ít nhất hai thông tin an toàn để tạo chuỗi tin nhắn có căn cứ")
 
     # The strongest fact becomes the evening hook; it is not repeated in the sequence when others remain.
     hook = None

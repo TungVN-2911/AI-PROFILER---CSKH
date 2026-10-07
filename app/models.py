@@ -37,6 +37,7 @@ class EpistemicStatus(str, Enum):
 FactCategory = Literal[
     "name",
     "bio",
+    "metric",
     "work",
     "education",
     "location",
@@ -51,8 +52,11 @@ FactCategory = Literal[
     "other",
 ]
 
+ProfileType = Literal["PERSONAL_PROFILE", "PUBLIC_PAGE", "UNKNOWN"]
 
-NON_GROUNDING_CATEGORIES = frozenset({"name", "pronouns", "gender", "birth_year", "perceived_gender", "perceived_age"})
+NON_GROUNDING_CATEGORIES = frozenset(
+    {"name", "metric", "pronouns", "gender", "birth_year", "perceived_gender", "perceived_age"}
+)
 
 
 class _Strict(BaseModel):
@@ -115,9 +119,10 @@ class ProfileImage(_Strict):
 class RawProfile(_Strict):
     facebook_url: str = Field(min_length=1)
     synthetic: bool = False
+    profile_type: ProfileType = "UNKNOWN"
     access: AccessInfo = Field(default_factory=AccessInfo)
     collected_at: datetime | None = None
-    collection_method: Literal["manual_export", "fixture", "live_meta"] | None = None
+    collection_method: Literal["manual_export", "fixture", "live_meta", "public_browser"] | None = None
     display_name: str | None = None
     bio: str | None = None
     public_info: PublicInfo = Field(default_factory=PublicInfo)
