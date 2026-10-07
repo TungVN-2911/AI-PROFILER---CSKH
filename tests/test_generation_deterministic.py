@@ -170,6 +170,28 @@ def test_multiple_facts_of_one_category_use_different_phrasings():
         assert len(set(openings)) == len(openings)
 
 
+def test_neutral_question_varies_across_customers():
+    # Same rich profile but a different number of interests → a different rotation offset, so the
+    # single neutral question shown is not the identical "generic bot" opener for both.
+    base = dict(public_posts=[{"text": "Vừa trồng xong luống rau mới"}], public_info={"current_city": "Huế"})
+    p_few = raw(**{**base, "public_info": {"current_city": "Huế", "interests": ["đọc sách", "vẽ"]}})
+    p_more = raw(**{**base, "public_info": {"current_city": "Huế", "interests": ["đọc sách", "vẽ", "nấu ăn"]}})
+    d_few = generate_deterministic(build_ledger(p_few), 10)
+    d_more = generate_deterministic(build_ledger(p_more), 10)
+    q_few = [m.text for m in d_few.messages if m.kind == "neutral" and m.text.rstrip().endswith("?")]
+    q_more = [m.text for m in d_more.messages if m.kind == "neutral" and m.text.rstrip().endswith("?")]
+    assert q_few and q_more
+    assert q_few != q_more
+    assert validate_draft(d_few, build_ledger(p_few)) == []
+    assert validate_draft(d_more, build_ledger(p_more)) == []
+
+
+def test_neutral_questions_are_deterministic_for_one_profile():
+    a = generate_deterministic(build_ledger(RICH), 10)
+    b = generate_deterministic(build_ledger(RICH), 10)
+    assert [m.text for m in a.messages] == [m.text for m in b.messages]
+
+
 def test_raises_when_too_few_facts_are_safe_to_quote():
     profile = raw(
         bio="Order hàng giá 199k",
