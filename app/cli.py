@@ -40,9 +40,13 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--output", type=Path, default=Path("output.json"), help="output file (default: output.json)")
     parser.add_argument("--evidence", type=Path, default=Path("evidence.json"), help="evidence file (default: evidence.json)")
     parser.add_argument("--mode", choices=["auto", "llm", "deterministic"], default="auto",
-                        help="auto: Claude if ANTHROPIC_API_KEY is set, else templates (default)")
-    parser.add_argument("--live", action="store_true", default=None,
-                        help="opt-in: one unauthenticated request for public meta tags (never logs in)")
+                        help="auto: configured LLM when available, otherwise deterministic templates (default)")
+    live_group = parser.add_mutually_exclusive_group()
+    live_group.add_argument("--live", dest="live", action="store_true",
+                            help="enable unauthenticated public-profile collection")
+    live_group.add_argument("--no-live", dest="live", action="store_false",
+                            help="disable all live Facebook requests")
+    parser.set_defaults(live=None)
     parser.add_argument("--messages", type=int, help="target number of rapport messages (5-10, default 10)")
     parser.add_argument("--verbose", action="store_true", help="log pipeline stages to stderr")
     return parser
@@ -89,7 +93,12 @@ def run(argv: list[str] | None = None) -> int:
         except ConfigError as exc:
             result = _error_result(args.url or "", f"INVALID_INPUT: {exc}", EXIT_INPUT)
         else:
-            options = PipelineOptions(profile_file=args.profile_file, mode=args.mode, live=args.live)
+            options = PipelineOptions(
+                profile_file=args.profile_file,
+                mode=args.mode,
+                live=args.live,
+                public_browser=False if args.live is False else args.live,
+            )
             result = run_pipeline(args.url, options, settings)
 
     document = serialize_output(result.output)
@@ -99,8 +108,11 @@ def run(argv: list[str] | None = None) -> int:
         evidence_document = serialize_evidence(result.evidence)
         write_text(evidence_path, evidence_document)
 
+        is_real_source = profile_file is not None or any(
+            source in {"facebook_selenium", "live_meta"} for source in result.evidence.sources_used
+        )
         if (
-            profile_file is not None
+            is_real_source
             and output_path == Path("output.json")
             and evidence_path == Path("evidence.json")
             and not result.evidence.synthetic_data

@@ -48,7 +48,7 @@ Operator reviews evidence.json, then sends messages manually (system never sends
 | ID | Decision | Rationale | Alternatives rejected |
 |---|---|---|---|
 | AD-01 | Python 3.11+, stdlib `argparse`, Pydantic v2 | Brief uses `python main.py`; Pydantic gives strict schema validation. | Node.js (no advantage); Typer/Click (extra dep). |
-| AD-02 | Provided profile data is the **primary** data path; live fetch is **opt-in**, meta-tags only, single request | Facebook gates nearly all profile content behind login; Meta terms restrict automated collection; brief forbids bypass. | Headless browser scraping, logged-in sessions, Graph API on arbitrary users (not permitted). |
+| AD-02 | Resolve supplied files and local profiles first; otherwise make one best-effort, unauthenticated browser visit for publicly rendered content; optional metadata-only HTTP source | Supports the brief's URL-first path without credentials or access-control bypass; blocked pages remain honest partial results. | Logged-in sessions, persistent cookies, proxy rotation, CAPTCHA handling, repeated scrolling or retries. |
 | AD-03 | Fact Ledger with IDs + mandatory citations from the LLM | Makes "zero hallucination" machine-checkable. | Trusting prompt instructions alone. |
 | AD-04 | Two AI calls: vision (optional) + one structured engagement call | Coherent tone, fewer calls, per-section validation still possible. | One call per section (3–4 calls, more cost/latency). |
 | AD-05 | Deterministic template generator always available | Runability without API key; guaranteed-safe fallback. | LLM-only (reviewer may have no key). |
@@ -146,7 +146,7 @@ Coverage targets from the brief §24 are mapped one-to-one to test files in task
 
 | ID | Decision | Recommendation |
 |---|---|---|
-| D-1 | Data access strategy | Provided data (file/fixture store) primary; live meta fetch **opt-in** (`--live`), never default. |
+| D-1 | Data access strategy | **Revised for URL-first brief:** provided files and matching local profiles take precedence; otherwise one unauthenticated public-browser visit is enabled by default and may be disabled with `--no-live`. No login or access-control bypass. |
 | D-2 | Test data | 3+ **synthetic** fixture personas committed; real URLs only if you supply consenting profiles, outputs kept out of git. |
 | D-3 | Demographics policy | **Revised by CR-001 (approved 2026-10-06):** self-declared data first; else a perceived estimate from a public image labelled `INFERENCE` with confidence; else `UNKNOWN`. |
 | D-4 | Output extras | Exact schema in output.json; grounding/provenance in separate `evidence.json`; messages as array of strings. |

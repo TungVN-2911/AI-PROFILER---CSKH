@@ -14,7 +14,7 @@ from html.parser import HTMLParser
 import httpx
 
 from app.input import CanonicalUrl
-from app.models import AccessState, AcquisitionResult, ProfileImage, RawProfile
+from app.models import AccessState, AcquisitionResult, ProfileImage, ProfileType, RawProfile
 
 log = logging.getLogger(__name__)
 
@@ -51,6 +51,11 @@ BOILERPLATE_DESCRIPTION = re.compile(
     r"is on facebook\. join facebook to connect|tham gia facebook để kết nối|đang ở trên facebook",
     re.IGNORECASE,
 )
+PUBLIC_PAGE_MARKERS = re.compile(
+    r"\b(?:official page|official account|page chính thức|trang chính thức)\b"
+    r"|(?:this is|đây là)\s+(?:the\s+)?(?:official\s+)?page\b",
+    re.IGNORECASE,
+)
 TITLE_SUFFIX = re.compile(r"\s*[|–-]\s*facebook\s*$", re.IGNORECASE)
 
 
@@ -64,7 +69,7 @@ class _MetaParser(HTMLParser):
             return
         attr = {k.lower(): (v or "") for k, v in attrs}
         key = (attr.get("property") or attr.get("name") or "").lower()
-        if key in {"og:title", "og:description", "og:image"} and key not in self.meta:
+        if key in {"og:title", "og:description", "og:image", "og:type"} and key not in self.meta:
             content = attr.get("content", "").strip()
             if content:
                 self.meta[key] = content
@@ -146,9 +151,15 @@ class LivePublicMetaSource:
         if description and BOILERPLATE_DESCRIPTION.search(description):
             description = None
         image = meta.get("og:image")
+        profile_type: ProfileType = "UNKNOWN"
+        if meta.get("og:type", "").casefold() == "profile":
+            profile_type = "PERSONAL_PROFILE"
+        elif PUBLIC_PAGE_MARKERS.search(f"{name} {description or ''}"):
+            profile_type = "PUBLIC_PAGE"
         raw = RawProfile(
             facebook_url=url.url,
             synthetic=False,
+            profile_type=profile_type,
             access={"state": AccessState.PUBLIC if description else AccessState.PARTIAL},
             collected_at=datetime.now(timezone.utc),
             collection_method="live_meta",

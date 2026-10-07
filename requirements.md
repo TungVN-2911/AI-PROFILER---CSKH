@@ -42,7 +42,7 @@ Output: strict JSON on **stdout** and in **output.json**.
 | A-01 | Implementation language is **Python 3.11+** (repo already has a Python `.gitignore`; Python 3.12 is installed). |
 | A-02 | "Dialogue sequence" means the **agent's outbound messages only** (we cannot know the customer's replies; inventing them would be hallucination). |
 | A-03 | Generated messages are written in **Vietnamese** by default (CSKH context), configurable via env. Documentation is in English. |
-| A-04 | Unauthenticated requests to facebook.com usually return a login wall; therefore **pre-extracted profile data (JSON) is the primary reliable data path**, and live fetching is a best-effort, opt-in adapter that only reads public HTML meta tags. |
+| A-04 | Facebook may limit unauthenticated requests; profile JSON remains the reliable fallback. The URL-first CLI makes one best-effort unauthenticated browser visit to content Facebook exposes publicly and reports login/checkpoint/CAPTCHA walls without attempting to bypass them. |
 | A-05 | The 20:00 trigger is represented in the output (`trigger_time: "20:00"`); the CLI does **not** run a long-lived scheduler/daemon. |
 | A-06 | `dialogue_sequence_10` is an **array of strings** (messages). Grounding metadata is written to a separate `evidence.json` so the main schema stays exactly as specified. |
 | A-07 | ~~Demographic fields only from self-declared data.~~ **Revised by CR-001:** self-declared data first; otherwise a labelled `INFERENCE` perceived from a public image (gender presentation, apparent age range) when confident; otherwise `"UNKNOWN"`. |
@@ -52,7 +52,7 @@ Output: strict JSON on **stdout** and in **output.json**.
 
 | ID | Risk | Impact | Likelihood | Mitigation |
 |---|---|---|---|---|
-| R-01 | Facebook blocks unauthenticated access (login wall, redirects, anti-bot); Meta terms restrict automated collection. | High | Very high | Primary path = provided profile data; live adapter is opt-in, single request, meta tags only, detects login wall → `PARTIAL_OR_PRIVATE` + `TECHNICAL LIMITATION`. Never bypass. |
+| R-01 | Facebook may block or limit unauthenticated access; automated collection is subject to Meta policies. | High | Very high | One best-effort public browser visit only; detect login/checkpoint/CAPTCHA → `PARTIAL_OR_PRIVATE`; never bypass, retry, or rotate IPs. Provide profile-file fallback and obtain required permissions. |
 | R-02 | LLM hallucinates facts / situations. | High | Medium | Fact ledger with IDs; LLM must cite fact IDs; deterministic validator rejects unknown IDs & ungrounded claims; retry then deterministic fallback. |
 | R-03 | Sensitive-attribute inference (gender/age/ethnicity/health/religion) from photos is unreliable and ethically risky. | High | Medium | Default policy: no appearance-based demographic inference; vision prompt forbids identity attributes; validator blocks sensitive terms. |
 | R-04 | Subtle sales leakage ("soft sell") not caught by keyword lists. | Medium | Medium | Bilingual (vi/en) sales lexicon + prompt rules + deterministic structural checks (no prices, links, product names, CTAs). Documented limitation. |
@@ -70,7 +70,7 @@ Output: strict JSON on **stdout** and in **output.json**.
 ### FR-001 — CLI entry point
 The system SHALL be runnable as `python main.py --url "<url>"`.
 Optional flags: `--profile-file <path>` (pre-extracted profile JSON), `--output <path>` (default `output.json`),
-`--mode auto|llm|deterministic`, `--live` (enable live public fetch, see FR-005).
+`--mode auto|llm|deterministic`, `--live|--no-live` (control public fetch, see FR-005).
 **Acceptance:** `python main.py --url "https://www.facebook.com/<fixture_user>"` exits 0 and prints valid JSON.
 
 ### FR-002 — Input validation & normalization
@@ -87,11 +87,11 @@ The system SHALL load profile data from (a) `--profile-file`, or (b) a local pro
 Each acquisition SHALL produce an access state: `PUBLIC`, `PARTIAL`, `PRIVATE`, `LOGIN_REQUIRED`, `NOT_FOUND`, `UNREACHABLE`, `INVALID_INPUT`.
 **Acceptance:** fixtures for private / dead-link cases produce `PARTIAL_OR_PRIVATE` with an `error_note` naming the state.
 
-### FR-005 — Live public fetch (opt-in, best effort)
-When `--live` (or `LIVE_FETCH_ENABLED=true`) is set, the system MAY perform **one** unauthenticated HTTP GET to the URL and extract only public HTML meta tags (`og:title`, `og:description`, `og:image`).
-It SHALL NOT log in, use cookies/credentials, solve CAPTCHAs, rotate IPs/user-agents, or retry to evade blocks.
+### FR-005 — Live public fetch (best effort)
+When no provided profile or matching local profile exists, the default URL flow MAY make one unauthenticated browser visit to the profile URL and read only content rendered publicly on that page. An optional single HTTP request may read public metadata.
+It SHALL NOT log in, use cookies/credentials, solve CAPTCHAs, rotate IPs/user-agents, scroll repeatedly, click through access gates, or retry to evade blocks. `--no-live` disables all Facebook requests.
 Login redirect / checkpoint / CAPTCHA page → `LOGIN_REQUIRED`; HTTP 404/410 or "content isn't available" → `NOT_FOUND`.
-**Acceptance:** mocked responses for public meta, login wall and 404 map to the correct access state.
+**Acceptance:** mocked browser pages for a public profile and login wall map to the correct access state; the browser source makes no login request and closes its fresh session.
 
 ### FR-006 — Normalization into a Fact Ledger
 Raw data SHALL be normalized into a fact ledger: each item has `id`, `category`, `statement`, `source`, `epistemic_status ∈ {FACT, INFERENCE, UNKNOWN}`.

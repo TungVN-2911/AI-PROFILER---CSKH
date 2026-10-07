@@ -10,9 +10,9 @@ from app.models import READABLE_STATES, AccessState, AcquisitionResult, RawProfi
 SYNTHETIC_NOTE = "Persona thử nghiệm giả lập: dữ liệu là hư cấu, không thu thập từ Facebook."
 
 NO_DATA_LIMITATION = (
-    "TECHNICAL LIMITATION: Không có dữ liệu truy cập hợp lệ cho trang cá nhân này. Facebook yêu cầu đăng nhập "
-    "để xem gần như toàn bộ nội dung trang cá nhân, và agent không đăng nhập hay vượt qua cơ chế kiểm soát truy cập. "
-    "Hãy cung cấp dữ liệu qua --profile-file, hoặc bật chế độ đọc metadata công khai --live."
+    "TECHNICAL LIMITATION: Không có dữ liệu truy cập được cho URL này. Nguồn công khai không trả về nội dung "
+    "hồ sơ đủ dùng; agent không đăng nhập hay vượt qua cơ chế kiểm soát truy cập. Có thể cung cấp dữ liệu hợp lệ "
+    "qua --profile-file hoặc dùng --no-live để tắt truy cập mạng."
 )
 
 

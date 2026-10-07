@@ -36,9 +36,9 @@ RUN_DIR = ROOT / "runs" / "test_run"
 
 DATA_NOTE = (
     "TECHNICAL LIMITATION: các trường hợp profile dùng persona thử nghiệm giả lập (fixtures/profiles, 'synthetic': true), "
-    "không phải dữ liệu Facebook thật. Facebook yêu cầu đăng nhập để xem gần như toàn bộ nội dung trang cá nhân và agent "
-    "không đăng nhập hay vượt qua cơ chế kiểm soát truy cập; trường hợp 'live_facebook_attempt' ghi lại kết quả thực tế "
-    "của một request không đăng nhập. Để chạy trên profile thật (có sự đồng ý), xem README mục 5 'Chạy với trang cá nhân thật (có sự đồng ý)'."
+    "không phải dữ liệu Facebook thật. URL thật được thử bằng một lần mở trình duyệt công khai không đăng nhập; "
+    "login/checkpoint/CAPTCHA không được vượt qua. Trường hợp 'live_facebook_attempt' ghi lại kết quả của request "
+    "metadata không đăng nhập. Để chạy trên profile thật, xem README mục 5."
 )
 
 CASES = [
@@ -57,7 +57,7 @@ CASES = [
     {"case": "llm_mode_public_rich", "purpose": "LLM generation on the rich profile (Gemini or Claude; requires an API key)",
      "args": ["--url", "https://www.facebook.com/fixture.minh.anh", "--mode", "llm"], "needs_llm": True},
     {"case": "live_facebook_attempt",
-     "purpose": "One unauthenticated public-meta request to facebook.com (Meta's own page, not a private person)",
+     "purpose": "One unauthenticated public-browser visit to facebook.com (Meta's own page, not a private person)",
      "args": ["--url", "https://www.facebook.com/facebook", "--live"]},
 ]
 
