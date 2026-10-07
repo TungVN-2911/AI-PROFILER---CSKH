@@ -78,6 +78,23 @@ def test_unknown_fact_id():
     assert "UNKNOWN_FACT_ID" in codes(validate_draft(draft(set_msg(1, CLEAN["messages"][1]["text"], fact_ids=["F99"])), LEDGER))
 
 
+def test_raw_fact_id_in_message_is_rejected():
+    # A real LLM run leaked "…bàn bằng gỗ dài F10." into a customer message.
+    v = validate_draft(draft(set_msg(5, "Cây trầu bà ra lá mới, nhìn thật dễ thương F11.", fact_ids=["F11"])), LEDGER)
+    assert "RAW_FACT_ID" in codes(v)
+
+
+def test_raw_fact_id_in_hook_is_rejected():
+    v = validate_draft(draft(lambda d: d["evening_hook"].update(text="Mẻ sourdough tiếp theo của bạn thế nào F10?", fact_ids=["F10"])), LEDGER)
+    assert "RAW_FACT_ID" in codes(v)
+
+
+def test_fact_id_tokens_are_allowed_in_lifestyle_provenance():
+    # apparent_lifestyle intentionally cites ids as provenance, e.g. "(dựa trên F5, F6)".
+    d = draft(lambda d: d.update(apparent_lifestyle={"text": "INFERENCE: lối sống năng động (dựa trên F5, F6)", "fact_ids": ["F5", "F6"]}))
+    assert "RAW_FACT_ID" not in codes(validate_draft(d, LEDGER))
+
+
 def test_grounded_message_without_citation():
     assert "MISSING_CITATION" in codes(validate_draft(draft(set_msg(2, "Bạn bắt đầu chạy bộ từ khi nào vậy?", fact_ids=[])), LEDGER))
 
