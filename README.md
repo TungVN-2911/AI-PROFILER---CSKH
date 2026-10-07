@@ -241,6 +241,11 @@ hình đọc. Khi có API key và ảnh đại diện, agent thêm một ước 
 `Nữ (tự khai báo trên trang cá nhân [F8])` và `29–30 tuổi (tính từ năm sinh tự khai báo 1996 [F9], tại năm 2026)`.
 Dữ liệu tự khai báo luôn được ưu tiên, và agent không bao giờ đoán nhân khẩu học từ tên.
 
+Khi mô hình thực sự đọc một ảnh (có file hoặc URL ảnh), `visual_context` ngoài phần mô tả còn kèm một câu
+**"Ấn tượng tổng thể (AI, chưa kiểm chứng)"** — nhận xét ngắn về không khí/năng lượng/bối cảnh bức ảnh truyền tải.
+Câu này được sàng lọc như mọi mô tả ảnh (loại nếu chạm thuộc tính nhạy cảm hoặc thông tin liên hệ) và không bao giờ
+được đưa vào danh sách thông tin, nên không dùng để căn cứ tin nhắn hay chọn cách xưng hô.
+
 `PARTIAL_OR_PRIVATE` (trang cá nhân bị khóa):
 
 ```json
