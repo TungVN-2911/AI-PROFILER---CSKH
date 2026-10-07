@@ -1,0 +1,30 @@
+{
+  "status": "SUCCESS",
+  "facebook_url": "https://www.facebook.com/khanhthiphanhien",
+  "profile_data": {
+    "customer_name": "Khanh Thi Phan Hien",
+    "visual_context": "QUAN SÁT ẢNH BẰNG AI (ảnh đại diện; do mô hình tạo, chưa kiểm chứng): Ảnh có vẻ cho thấy nhiều người mặc trang phục màu đỏ và đen.; Ảnh có vẻ cho thấy khung cảnh được trang trí theo chủ đề ngày lễ với đèn lấp lánh.; Ảnh có vẻ cho thấy một nhóm người đang tạo dáng cùng nhau trong một bức ảnh chụp studio.",
+    "estimated_demographics": {
+      "gender": "UNKNOWN",
+      "estimated_age_range": "UNKNOWN",
+      "apparent_lifestyle": "INFERENCE: Khách hàng có liên quan đến Page chính thức của Khánh Thi Phan Hiển tại Thành phố Hồ Chí Minh."
+    }
+  },
+  "ethical_rapport": {
+    "core_empathy_angle": "Mình rất ấn tượng khi nhìn thấy bức ảnh chụp studio với nhóm người đang tạo dáng cùng nhau trong trang phục đỏ và đen, mang lại cảm giác gắn kết ấm áp.",
+    "dialogue_sequence_10": [
+      "Chào Khanh Thi Phan Hien, mình rất vui được gửi lời chào thân thiết đến bạn.",
+      "Mình thấy qua hình ảnh đại diện thì ảnh có vẻ cho thấy một nhóm người đang tạo dáng cùng nhau trong một bức ảnh chụp studio.",
+      "Bức ảnh đó có vẻ cho thấy nhiều người mặc trang phục màu đỏ và đen rất nổi bật.",
+      "Hơn nữa, ảnh cũng có vẻ cho thấy khung cảnh được trang trí theo chủ đề ngày lễ với đèn lấp lánh.",
+      "Không biết bạn có muốn chia sẻ thêm điều gì về những khoảnh khắc đáng nhớ này không?",
+      "Trang chính thức này mang lại nhiều thông tin thú vị cho những ai quan tâm.",
+      "Chúc bạn một ngày thật bình an và nhiều niềm vui nhé."
+    ],
+    "sales_mention_check": "ZERO_SALES_CONFIRMED"
+  },
+  "evening_cadence_20pm": {
+    "trigger_time": "20:00",
+    "evening_hook_message": "Nhìn lại khung cảnh được trang trí theo chủ đề ngày lễ với đèn lấp lánh trong ảnh, mình hy vọng bạn đang có những phút giây nghỉ ngơi thật thoải mái."
+  }
+}

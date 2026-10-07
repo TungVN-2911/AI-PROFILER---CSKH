@@ -1,0 +1,171 @@
+{
+  "facebook_url": "https://www.facebook.com/khanhthiphanhien",
+  "output_status": "SUCCESS",
+  "access_state": "PUBLIC",
+  "sources_used": [
+    "live_meta"
+  ],
+  "synthetic_data": false,
+  "collected_at": "2026-10-06T18:43:32.676216+00:00",
+  "addressing": "bạn/mình (chưa rõ giới tính)",
+  "generation_mode": "llm",
+  "model_id": "gemini-3.5-flash-lite",
+  "fact_ledger": [
+    {
+      "id": "F1",
+      "category": "name",
+      "statement": "Khanh Thi Phan Hien",
+      "source": "live_meta:display_name",
+      "epistemic_status": "FACT",
+      "confidence": null
+    },
+    {
+      "id": "F2",
+      "category": "bio",
+      "statement": "Khanh Thi Phan Hien, Thành phố Hồ Chí Minh",
+      "source": "live_meta:bio[0]",
+      "epistemic_status": "FACT",
+      "confidence": null
+    },
+    {
+      "id": "F3",
+      "category": "bio",
+      "statement": "1.778.332 người theo dõi",
+      "source": "live_meta:bio[1]",
+      "epistemic_status": "FACT",
+      "confidence": null
+    },
+    {
+      "id": "F4",
+      "category": "bio",
+      "statement": "99.699 người đang nói về điều này",
+      "source": "live_meta:bio[2]",
+      "epistemic_status": "FACT",
+      "confidence": null
+    },
+    {
+      "id": "F5",
+      "category": "bio",
+      "statement": "Đây là Page chính thức của Khánh Thi Phan Hiển",
+      "source": "live_meta:bio[3]",
+      "epistemic_status": "FACT",
+      "confidence": null
+    },
+    {
+      "id": "F6",
+      "category": "bio",
+      "statement": "Manager - Mrs Vân Anh 0932021194",
+      "source": "live_meta:bio[4]",
+      "epistemic_status": "FACT",
+      "confidence": null
+    },
+    {
+      "id": "F7",
+      "category": "visual_observation",
+      "statement": "Ảnh có vẻ cho thấy nhiều người mặc trang phục màu đỏ và đen.",
+      "source": "vision:avatar",
+      "epistemic_status": "INFERENCE",
+      "confidence": 0.95
+    },
+    {
+      "id": "F8",
+      "category": "visual_observation",
+      "statement": "Ảnh có vẻ cho thấy khung cảnh được trang trí theo chủ đề ngày lễ với đèn lấp lánh.",
+      "source": "vision:avatar",
+      "epistemic_status": "INFERENCE",
+      "confidence": 0.9
+    },
+    {
+      "id": "F9",
+      "category": "visual_observation",
+      "statement": "Ảnh có vẻ cho thấy một nhóm người đang tạo dáng cùng nhau trong một bức ảnh chụp studio.",
+      "source": "vision:avatar",
+      "epistemic_status": "INFERENCE",
+      "confidence": 0.95
+    }
+  ],
+  "unknown_fields": [
+    "work",
+    "education",
+    "interests",
+    "current_city",
+    "hometown",
+    "pronouns",
+    "gender",
+    "birth_year",
+    "public_posts"
+  ],
+  "grounding": {
+    "core_empathy_angle": [
+      "F7",
+      "F9"
+    ],
+    "gender": [],
+    "estimated_age_range": [],
+    "apparent_lifestyle": [
+      "F2",
+      "F5"
+    ],
+    "messages": [
+      {
+        "index": 0,
+        "kind": "neutral",
+        "fact_ids": [
+          "F1"
+        ]
+      },
+      {
+        "index": 1,
+        "kind": "grounded",
+        "fact_ids": [
+          "F9"
+        ]
+      },
+      {
+        "index": 2,
+        "kind": "grounded",
+        "fact_ids": [
+          "F7"
+        ]
+      },
+      {
+        "index": 3,
+        "kind": "grounded",
+        "fact_ids": [
+          "F8"
+        ]
+      },
+      {
+        "index": 4,
+        "kind": "neutral",
+        "fact_ids": []
+      },
+      {
+        "index": 5,
+        "kind": "grounded",
+        "fact_ids": [
+          "F5"
+        ]
+      },
+      {
+        "index": 6,
+        "kind": "neutral",
+        "fact_ids": []
+      }
+    ],
+    "evening_hook": [
+      "F8"
+    ]
+  },
+  "validation": {
+    "passed": true,
+    "attempts": 2,
+    "violations": [
+      "attempt 1: [MISSING_CITATION] evening_hook: must cite at least one usable fact"
+    ]
+  },
+  "technical_limitations": [
+    "Chế độ --live chỉ đọc các thẻ meta HTML công khai (og:title, og:description, og:image) từ một request không đăng nhập; bài đăng, mục Giới thiệu và phần lớn nội dung trang cá nhân không truy cập được nếu không đăng nhập.",
+    "bỏ qua ước lượng: ảnh không có đúng một người nhìn rõ"
+  ]
+}

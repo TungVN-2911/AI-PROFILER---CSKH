@@ -116,7 +116,7 @@ class FacebookSeleniumSource:
 
             # --- BƯỚC 2: NẠP COOKIE TÀI KHOẢN CỦA BẠN VÀO TRÌNH DUYỆT ---
             # Hãy thay chuỗi cookie thật của bạn vào biến RAW_COOKIE dưới đây
-            RAW_COOKIE = ""
+            RAW_COOKIE = "c_user=61554776605426;xs=21%3AkrHAg5-DCSvatQ%3A2%3A1791355735%3A-1%3A-1%3A%3AAczA1fD0iBSjwlNfZDISXA_vOY2R4Trzh-tTFJWjqw;fr=1lOe770wDGJNSSvxE.AWdQ1zvWyvUsv6JIX5I9-sf0QxfbBfO00vQMbu024IrYi8GTFCA.BqxiDh..AAA.0.0.BqxiDh.AWeo8Hb5Y5zei3__n8th2LlR2Ak"
 
             log.info("Đang tiến hành nạp Cookie vào phiên chạy ngầm...")
             for item in RAW_COOKIE.split(";"):

@@ -1,5 +1,5 @@
 {
-  "facebook_url": "https://www.facebook.com/trantu.quyen.5268",
+  "facebook_url": "https://www.facebook.com/profile.php?id=61565771169833",
   "output_status": "SUCCESS",
   "access_state": "PUBLIC",
   "profile_type": "PERSONAL_PROFILE",
@@ -8,15 +8,15 @@
     "facebook_selenium"
   ],
   "synthetic_data": false,
-  "collected_at": "2026-10-07T10:49:54.071035+00:00",
+  "collected_at": "2026-10-07T08:13:50.718716+00:00",
   "addressing": "bạn/mình (chưa rõ giới tính)",
   "generation_mode": "llm",
-  "model_id": "gemini-3.5-flash",
+  "model_id": "gemini-3.5-flash-lite",
   "fact_ledger": [
     {
       "id": "F1",
       "category": "name",
-      "statement": "Trần Tú Quyên",
+      "statement": "Phạm Hữu Khang",
       "source": "public_browser:display_name",
       "epistemic_status": "FACT",
       "confidence": null
@@ -24,7 +24,7 @@
     {
       "id": "F2",
       "category": "post",
-      "statement": "Sự tự do lớn nhất của con người không phải là muốn làm gì thì làm , mà là không để hoàn cảnh hay người khác kiểm soát tâm trí của mình",
+      "statement": "Cách năng lượng (kcal)trong cơ thể hoạt động\nNt 📩 mình để đơn giản hoá việc tập luyện nhé\n#phamhuukhang",
       "source": "public_browser:public_posts[0]",
       "epistemic_status": "FACT",
       "confidence": null
@@ -32,7 +32,7 @@
     {
       "id": "F3",
       "category": "post",
-      "statement": "Rồi em sẽ gặp được người luôn để bụng em “ no “ không phải người để đầu em “ lo “",
+      "statement": "Hôm nay mình thực sự vui mọi người ạ.\nVui vì mình đã hoàn thành được mục tiêu. Vui vì đã tiến bộ hơn năm trước.\nĐâu cần hơn ai, chỉ cần tiến bộ hơn phiên bản cũ của mình là được 🔥\n12-2024: FM 4h00\n12-2025: FM 3h29\nFM Sub 3 Coming Soon 💪🏻\n#phamhuukhang",
       "source": "public_browser:public_posts[1]",
       "epistemic_status": "FACT",
       "confidence": null
@@ -40,66 +40,66 @@
     {
       "id": "F4",
       "category": "post",
-      "statement": "\"Người hài hước không có phước trong chuyện tình yêu\"",
+      "statement": "Ngày nào cũng làm vài vòng qua đây mà n hot lúc nào không biết kk.\nTrời thu quá mát mẻ để vận động mọi người ạ. Không nóng như mùa hè làm mình mệt, ko quá lạnh như mùa … Xem thêm",
       "source": "public_browser:public_posts[2]",
       "epistemic_status": "FACT",
       "confidence": null
     },
     {
       "id": "F5",
-      "category": "post",
-      "statement": "Nghe tin NYC lấy chồng , hỏng biết nên vui hay buồn",
-      "source": "public_browser:public_posts[3]",
-      "epistemic_status": "FACT",
-      "confidence": null
-    },
-    {
-      "id": "F6",
       "category": "perceived_gender",
-      "statement": "female",
-      "source": "vision:avatar:estimate",
-      "epistemic_status": "INFERENCE",
-      "confidence": 0.95
-    },
-    {
-      "id": "F7",
-      "category": "perceived_age",
-      "statement": "20-32",
+      "statement": "male",
       "source": "vision:avatar:estimate",
       "epistemic_status": "INFERENCE",
       "confidence": 0.8
     },
     {
+      "id": "F6",
+      "category": "perceived_age",
+      "statement": "25-35",
+      "source": "vision:avatar:estimate",
+      "epistemic_status": "INFERENCE",
+      "confidence": 0.6
+    },
+    {
+      "id": "F7",
+      "category": "visual_observation",
+      "statement": "Ảnh có vẻ cho thấy một người để trần phần thân trên đang giơ một tay lên cao.",
+      "source": "vision:avatar",
+      "epistemic_status": "INFERENCE",
+      "confidence": 0.95
+    },
+    {
       "id": "F8",
       "category": "visual_observation",
-      "statement": "Ảnh có vẻ cho thấy một người đang đeo kính râm màu đen.",
-      "source": "vision:avatar",
-      "epistemic_status": "INFERENCE",
-      "confidence": 0.95
-    },
-    {
-      "id": "F9",
-      "category": "visual_observation",
-      "statement": "Ảnh có vẻ cho thấy người này đội một chiếc mũ cói rộng vành.",
-      "source": "vision:avatar",
-      "epistemic_status": "INFERENCE",
-      "confidence": 0.95
-    },
-    {
-      "id": "F10",
-      "category": "visual_observation",
-      "statement": "Ảnh có vẻ cho thấy người này mặc một chiếc áo quây màu trắng.",
+      "statement": "Ảnh có vẻ cho thấy một người cạo đầu.",
       "source": "vision:avatar",
       "epistemic_status": "INFERENCE",
       "confidence": 0.9
     },
     {
-      "id": "F11",
+      "id": "F9",
       "category": "visual_observation",
-      "statement": "Ảnh có vẻ cho thấy phía sau người này là những tán lá cây xanh lớn.",
+      "statement": "Ảnh có vẻ cho thấy một người mặc quần thể thao màu tối có dây rút màu đỏ.",
       "source": "vision:avatar",
       "epistemic_status": "INFERENCE",
-      "confidence": 0.95
+      "confidence": 0.9
+    },
+    {
+      "id": "F10",
+      "category": "visual_observation",
+      "statement": "Ảnh có vẻ cho thấy bối cảnh ngoài trời với các thanh xà tập thể dục.",
+      "source": "vision:avatar",
+      "epistemic_status": "INFERENCE",
+      "confidence": 0.85
+    },
+    {
+      "id": "F11",
+      "category": "visual_observation",
+      "statement": "Ảnh có vẻ cho thấy ô tô đỗ ở phía sau.",
+      "source": "vision:avatar",
+      "epistemic_status": "INFERENCE",
+      "confidence": 0.8
     }
   ],
   "unknown_fields": [
@@ -115,26 +115,26 @@
   ],
   "grounding": {
     "core_empathy_angle": [
-      "F2",
+      "F1",
       "F3"
     ],
     "gender": [
-      "F6"
+      "F5"
     ],
     "estimated_age_range": [
-      "F7"
+      "F6"
     ],
     "apparent_lifestyle": [
-      "F2"
+      "F3",
+      "F4",
+      "F10"
     ],
     "messages": [
       {
         "index": 0,
-        "kind": "grounded",
+        "kind": "neutral",
         "fact_ids": [
-          "F1",
-          "F9",
-          "F11"
+          "F1"
         ]
       },
       {
@@ -153,31 +153,58 @@
       },
       {
         "index": 3,
+        "kind": "neutral",
+        "fact_ids": []
+      },
+      {
+        "index": 4,
+        "kind": "grounded",
+        "fact_ids": [
+          "F3"
+        ]
+      },
+      {
+        "index": 5,
+        "kind": "grounded",
+        "fact_ids": [
+          "F10"
+        ]
+      },
+      {
+        "index": 6,
         "kind": "grounded",
         "fact_ids": [
           "F4"
         ]
       },
       {
-        "index": 4,
+        "index": 7,
+        "kind": "grounded",
+        "fact_ids": [
+          "F3"
+        ]
+      },
+      {
+        "index": 8,
         "kind": "neutral",
         "fact_ids": []
       },
       {
-        "index": 5,
+        "index": 9,
         "kind": "neutral",
         "fact_ids": []
       }
     ],
     "evening_hook": [
-      "F2"
+      "F3"
     ]
   },
   "validation": {
     "passed": true,
-    "attempts": 2,
+    "attempts": 3,
     "violations": [
-      "attempt 1: [SENSITIVE_TERM] evening_hook: sensitive attribute (family_relationship): 'người yêu'"
+      "attempt 1: [PRESUMPTION] evening_hook: presumes the customer's situation: 'hôm nay bạn có'",
+      "attempt 2: [MISSING_CITATION] evening_hook: must cite at least one usable fact"
     ]
   },
   "technical_limitations": [

@@ -220,7 +220,7 @@ __marimo__/
 .streamlit/secrets.toml
 
 # Facebook Profiler Agent: outputs of runs on real profiles (never commit personal data)
-runs/
+# runs/
 
 # Local browser profile may contain cookies, sessions and account data.
 app/storage/
