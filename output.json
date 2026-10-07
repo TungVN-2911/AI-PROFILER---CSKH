@@ -1,29 +1,33 @@
 {
   "status": "SUCCESS",
-  "facebook_url": "https://www.facebook.com/trantu.quyen.5268",
+  "facebook_url": "https://www.facebook.com/profile.php?id=61565771169833",
   "profile_data": {
-    "customer_name": "Trần Tú Quyên",
-    "visual_context": "QUAN SÁT ẢNH BẰNG AI (ảnh đại diện; do mô hình tạo, chưa kiểm chứng): Ảnh có vẻ cho thấy một người đang đeo kính râm màu đen.; Ảnh có vẻ cho thấy người này đội một chiếc mũ cói rộng vành.; Ảnh có vẻ cho thấy người này mặc một chiếc áo quây màu trắng.; Ảnh có vẻ cho thấy phía sau người này là những tán lá cây xanh lớn. | Ấn tượng tổng thể (AI, chưa kiểm chứng): Ảnh có vẻ toát lên không khí thư thái, mang phong cách du lịch mùa hè và gần gũi với thiên nhiên.",
+    "customer_name": "Phạm Hữu Khang",
+    "visual_context": "QUAN SÁT ẢNH BẰNG AI (ảnh đại diện; do mô hình tạo, chưa kiểm chứng): Ảnh có vẻ cho thấy một người để trần phần thân trên đang giơ một tay lên cao.; Ảnh có vẻ cho thấy một người cạo đầu.; Ảnh có vẻ cho thấy một người mặc quần thể thao màu tối có dây rút màu đỏ.; Ảnh có vẻ cho thấy bối cảnh ngoài trời với các thanh xà tập thể dục.; Ảnh có vẻ cho thấy ô tô đỗ ở phía sau.",
     "estimated_demographics": {
-      "gender": "INFERENCE: Nữ (ước lượng từ ảnh đại diện, độ tin cậy 0.95) [F6]",
-      "estimated_age_range": "INFERENCE: 20–32 tuổi (ước lượng từ ảnh đại diện, độ tin cậy 0.80) [F7]",
-      "apparent_lifestyle": "INFERENCE: Bạn là người trân trọng sự độc lập trong suy nghĩ và luôn hướng tới việc tự chủ về mặt cảm xúc trước những biến động xung quanh."
+      "gender": "INFERENCE: Nam (ước lượng từ ảnh đại diện, độ tin cậy 0.80) [F5]",
+      "estimated_age_range": "INFERENCE: 25–35 tuổi (ước lượng từ ảnh đại diện, độ tin cậy 0.60) [F6]",
+      "apparent_lifestyle": "INFERENCE: Bạn là người quan tâm đến việc vận động và rèn luyện thể chất dựa trên các bài đăng về mục tiêu cá nhân và bối cảnh tập luyện ngoài trời."
     }
   },
   "ethical_rapport": {
-    "core_empathy_angle": "Sự đồng điệu đến từ góc nhìn sâu sắc của bạn về sự tự do trong tâm trí trước hoàn cảnh và những mong đợi rất thực tế, đáng yêu trong cuộc sống.",
+    "core_empathy_angle": "Mình rất đồng cảm với niềm vui khi hoàn thành mục tiêu và vượt qua chính mình của bạn Phạm Hữu Khang.",
     "dialogue_sequence_10": [
-      "Chào Tú Quyên, mình rất vui được kết nối với bạn. Nhìn ảnh đại diện của bạn, mình thấy hình như bạn đang đội một chiếc mũ cói rộng vành giữa những tán lá cây xanh mát.",
-      "Mình rất tâm đắc với dòng chia sẻ của bạn về việc sự tự do lớn nhất là không để hoàn cảnh hay người khác kiểm soát tâm trí của mình. Đó là một góc nhìn thật sự độc lập.",
-      "Bạn từng chia sẻ: 'Rồi em sẽ gặp được người luôn để bụng em “ no “ không phải người để đầu em “ lo “'. Câu viết này vừa đáng yêu mà lại vừa thực tế vô cùng.",
-      "Còn câu 'Người hài hước không có phước trong chuyện tình yêu' làm mình suy ngẫm mãi. Liệu có phải những người mang lại tiếng cười đôi khi lại giữ những nỗi niềm riêng không nhỉ?",
-      "Mỗi dòng trạng thái của bạn đều mang một nét rất riêng, lúc thì sâu lắng, lúc lại hóm hỉnh. Bạn có thường dành thời gian để viết ra những suy nghĩ của mình như thế này không?",
-      "Mong rằng hành trình phía trước của bạn sẽ luôn ngập tràn niềm vui và những trải nghiệm thật ý nghĩa nhé."
+      "Chào bạn Phạm Hữu Khang, chúc bạn một ngày thật nhiều năng lượng.",
+      "Mình thấy bạn chia sẻ về cách năng lượng trong cơ thể hoạt động.",
+      "Thật tuyệt vời khi đọc được những dòng chia sẻ rằng bạn thực sự vui vì đã hoàn thành được mục tiêu.",
+      "Cảm giác tiến bộ hơn năm trước thực sự rất đáng trân trọng phải không nào.",
+      "Đúng như bạn viết, đâu cần hơn ai, chỉ cần tiến bộ hơn phiên bản cũ của mình là được.",
+      "Nhìn ảnh đại diện của bạn có vẻ cho thấy bối cảnh ngoài trời với các thanh xà tập thể dục.",
+      "Thời tiết mùa thu quá mát mẻ để vận động như bạn từng nhắc đến.",
+      "Mục tiêu FM Sub 3 của bạn nghe thật quyết tâm.",
+      "Bạn có hay ra ngoài tập luyện vào những ngày trời thu mát mẻ không?",
+      "Chúc bạn luôn giữ vững tinh thần tích cực này nhé."
     ],
     "sales_mention_check": "ZERO_SALES_CONFIRMED"
   },
   "evening_cadence_20pm": {
     "trigger_time": "20:00",
-    "evening_hook_message": "Hôm nay mình cứ nghĩ mãi về chia sẻ của bạn, rằng sự tự do lớn nhất là không để hoàn cảnh kiểm soát tâm trí. Bạn có bí quyết nào để giữ cho tâm mình luôn vững vàng trước những tác động bên ngoài như vậy không?"
+    "evening_hook_message": "Mình chợt nhớ đến cột mốc FM 3h29 vào tháng 12 năm 2025 trong bài viết của bạn."
   }
 }

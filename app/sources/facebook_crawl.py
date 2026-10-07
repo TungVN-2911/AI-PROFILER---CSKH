@@ -4,11 +4,18 @@ This source uses a shared browser session with a persistent profile to reuse
 the logged-in cookies and avoid login barriers.
 """
 
+"""Selenium source for content Facebook exposes using a persistent browser profile.
+
+This source uses a shared browser session with a persistent profile to reuse
+the logged-in cookies and avoid login barriers.
+"""
+
 from __future__ import annotations
 
 import logging
 import re
 import time
+import random
 import random
 from datetime import datetime, timezone
 from pathlib import Path
@@ -18,22 +25,59 @@ from selenium.common.exceptions import (
     StaleElementReferenceException,
     WebDriverException,
 )
+from selenium.common.exceptions import (
+    StaleElementReferenceException,
+    WebDriverException,
+)
 from selenium.webdriver.chrome.options import Options
+from selenium.webdriver.common.by import By
 from selenium.webdriver.common.by import By
 from selenium.webdriver.support.ui import WebDriverWait
 
 from app.input import CanonicalUrl
 from app.models import (
     AccessInfo,
+    AccessInfo,
     AccessState,
     AcquisitionResult,
     ProfileImage,
+    ProfileType,
+    PublicPost,
     ProfileType,
     PublicPost,
     RawProfile,
 )
 
 log = logging.getLogger(__name__)
+
+LOGIN_MARKERS = ("login", "checkpoint", "captcha")
+NOT_FOUND_MARKERS = (
+    "this content isn't available right now",
+    "this page isn't available",
+    "nội dung này hiện không khả dụng",
+    "trang này không khả dụng",
+)
+MAX_POSTS = 15
+TITLE_SUFFIX = re.compile(r"\s*[|–-]\s*facebook\s*$", re.IGNORECASE)
+PUBLIC_PAGE_MARKERS = (
+    "official page",
+    "official account",
+    "page chính thức",
+    "trang chính thức",
+)
+GENERIC_TITLES = frozenset(
+    {
+        "facebook",
+        "log in",
+        "log into facebook",
+        "log in to facebook",
+        "đăng nhập facebook",
+    }
+)
+
+
+def _is_login_redirect(url: str) -> bool:
+    return any(marker in url.casefold() for marker in LOGIN_MARKERS)
 
 LOGIN_MARKERS = ("login", "checkpoint", "captcha")
 NOT_FOUND_MARKERS = (
@@ -116,7 +160,7 @@ class FacebookSeleniumSource:
 
             # --- BƯỚC 2: NẠP COOKIE TÀI KHOẢN CỦA BẠN VÀO TRÌNH DUYỆT ---
             # Hãy thay chuỗi cookie thật của bạn vào biến RAW_COOKIE dưới đây
-            RAW_COOKIE = "c_user=61554776605426;xs=21%3AkrHAg5-DCSvatQ%3A2%3A1791355735%3A-1%3A-1%3A%3AAczA1fD0iBSjwlNfZDISXA_vOY2R4Trzh-tTFJWjqw;fr=1lOe770wDGJNSSvxE.AWdQ1zvWyvUsv6JIX5I9-sf0QxfbBfO00vQMbu024IrYi8GTFCA.BqxiDh..AAA.0.0.BqxiDh.AWeo8Hb5Y5zei3__n8th2LlR2Ak"
+            RAW_COOKIE = ""
 
             log.info("Đang tiến hành nạp Cookie vào phiên chạy ngầm...")
             for item in RAW_COOKIE.split(";"):

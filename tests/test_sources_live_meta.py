@@ -58,6 +58,7 @@ def test_public_page_yields_public_raw_profile():
     assert raw.bio == "Giáo viên tiếng Anh & mê đọc sách. Sống tại Đà Nẵng."
     assert raw.images[0].url == "https://scontent.example/avatar.jpg"
     assert raw.collection_method == "live_meta"
+    assert raw.profile_type == "UNKNOWN"
     assert raw.synthetic is False
     assert result.synthetic is False
     assert any("chỉ đọc các thẻ meta HTML công khai" in n for n in result.limitations)
@@ -159,3 +160,11 @@ def test_disabled_by_default_makes_no_request():
 def test_parse_meta_takes_first_value_and_ignores_empty():
     meta = parse_meta('<meta property="og:title" content=""><meta property="og:title" content="A"><meta property="og:title" content="B">')
     assert meta == {"og:title": "A"}
+
+
+def test_public_page_is_classified_from_explicit_page_metadata():
+    body = """<meta property="og:title" content="Khánh Thi Phan Hiển">
+    <meta property="og:description" content="Đây là Page chính thức của Khánh Thi Phan Hiển">
+    <meta property="og:type" content="website">"""
+    result = source_for(Recorder(html(body))).acquire(URL)
+    assert result.raw.profile_type == "PUBLIC_PAGE"

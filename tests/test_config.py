@@ -20,9 +20,23 @@ def test_defaults_with_empty_environment():
     assert s.llm_max_retries == 2
     assert s.output_language == "vi"
     assert s.live_fetch_enabled is False
+    assert s.public_browser_enabled is True
     assert s.profile_store_dir == PROJECT_ROOT / "fixtures" / "profiles"
     assert s.min_grounding_facts == 2
     assert s.default_message_count == 10
+
+
+def test_facebook_login_settings_are_not_supported():
+    s = load(
+        {
+            "FACEBOOK_EMAIL": "ignored@example.com",
+            "FACEBOOK_PASSWORD": "ignored-password",
+            "SELENIUM_HEADLESS": "false",
+        }
+    )
+    assert not hasattr(s, "facebook_email")
+    assert not hasattr(s, "facebook_password")
+    assert not hasattr(s, "selenium_headless")
 
 
 def test_env_overrides_defaults():
@@ -54,6 +68,11 @@ def test_env_overrides_defaults():
 @pytest.mark.parametrize("raw,expected", [("1", True), ("yes", True), ("false", False), ("0", False)])
 def test_boolean_parsing(raw, expected):
     assert load({"LIVE_FETCH_ENABLED": raw}).live_fetch_enabled is expected
+
+
+@pytest.mark.parametrize("raw,expected", [("1", True), ("yes", True), ("false", False), ("0", False)])
+def test_public_browser_boolean_parsing(raw, expected):
+    assert load({"PUBLIC_BROWSER_ENABLED": raw}).public_browser_enabled is expected
 
 
 def test_empty_values_are_treated_as_unset():

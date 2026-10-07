@@ -13,7 +13,7 @@ RICH_URL = "https://www.facebook.com/fixture.minh.anh"
 
 
 def clean_env():
-    env = {k: v for k, v in os.environ.items() if not k.startswith(("ANTHROPIC_", "GEMINI_", "PYTHONIOENCODING", "PYTHONUTF8", "LLM_", "LIVE_", "PROFILE_STORE", "MIN_GROUNDING", "DEFAULT_MESSAGE", "OUTPUT_LANGUAGE"))}
+    env = {k: v for k, v in os.environ.items() if not k.startswith(("ANTHROPIC_", "GEMINI_", "PYTHONIOENCODING", "PYTHONUTF8", "LLM_", "LIVE_", "PUBLIC_BROWSER_", "PROFILE_STORE", "MIN_GROUNDING", "DEFAULT_MESSAGE", "OUTPUT_LANGUAGE"))}
     return env
 
 
