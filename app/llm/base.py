@@ -59,6 +59,15 @@ class VisionResult(BaseModel):
 
     image_usable: bool
     observations: list[VisionObservation] = Field(default_factory=list, max_length=5)
+    impression: str | None = Field(
+        default=None,
+        description=(
+            "One short Vietnamese sentence giving the overall impression the photo conveys — its mood, energy, "
+            "style or setting (e.g. 'Ảnh có vẻ toát lên tinh thần năng động, gần gũi với thiên nhiên'). Ground it "
+            "in what is visible, hedge with 'có vẻ', and never mention gender, age, ethnicity, religion, health, "
+            "body, orientation, politics, relationships or family roles. Use null if nothing safe can be said."
+        ),
+    )
     estimate: VisionEstimate | None = Field(
         description="Always include this key. Use null if the image is unusable; otherwise return an explicit estimate, marking uncertain values unclear/null."
     )
