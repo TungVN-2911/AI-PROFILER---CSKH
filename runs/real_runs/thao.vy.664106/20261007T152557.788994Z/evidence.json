@@ -1,0 +1,46 @@
+{
+  "facebook_url": "https://www.facebook.com/thao.vy.664106",
+  "output_status": "PARTIAL_OR_PRIVATE",
+  "access_state": "LOGIN_REQUIRED",
+  "profile_type": "UNKNOWN",
+  "requires_human_review": true,
+  "sources_used": [
+    "facebook_selenium"
+  ],
+  "synthetic_data": false,
+  "collected_at": null,
+  "addressing": null,
+  "generation_mode": "none",
+  "model_id": null,
+  "fact_ledger": [],
+  "unknown_fields": [
+    "display_name",
+    "bio",
+    "work",
+    "education",
+    "interests",
+    "current_city",
+    "hometown",
+    "pronouns",
+    "gender",
+    "birth_year",
+    "public_posts",
+    "images"
+  ],
+  "grounding": {
+    "core_empathy_angle": [],
+    "gender": [],
+    "estimated_age_range": [],
+    "apparent_lifestyle": [],
+    "messages": [],
+    "evening_hook": []
+  },
+  "validation": {
+    "passed": false,
+    "attempts": 0,
+    "violations": []
+  },
+  "technical_limitations": [
+    "Thiếu thiết lập Token Cookie."
+  ]
+}

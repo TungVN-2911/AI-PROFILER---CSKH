@@ -156,7 +156,7 @@ def test_data_partial_cases(tmp_path, case, prefix, state):
 
 
 def test_data_unknown_profile_reports_technical_limitation(tmp_path):
-    code, out, _ = cli(tmp_path, "--url", "https://www.facebook.com/someone.not.provided")
+    code, out, _ = cli(tmp_path, "--url", "https://www.facebook.com/someone.not.provided", "--no-live")
     assert code == 0 and out.error_note.startswith("TECHNICAL LIMITATION:")
 
 

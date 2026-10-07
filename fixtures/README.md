@@ -28,7 +28,7 @@ URL nào không có fixture (và không dùng `--profile-file` / `--live`) sẽ 
 
 ## Định dạng
 
-Xem `architecture.md` mục 4.1. Mọi trường trừ `facebook_url` đều không bắt buộc; trường thiếu hoặc để trống được ghi
+Mọi trường trừ `facebook_url` đều không bắt buộc; trường thiếu hoặc để trống được ghi
 nhận là `UNKNOWN` và không bao giờ bị tự điền. Khóa không xác định bị từ chối. `access.state` (`PUBLIC`, `PARTIAL`,
 `PRIVATE`, `LOGIN_REQUIRED`, `NOT_FOUND`, `UNREACHABLE`) cho phép một fixture mô phỏng trang bị giới hạn hoặc link chết
 mà không cần truy cập mạng; các trường dữ liệu trang cá nhân bị bỏ qua trừ khi trạng thái là `PUBLIC` hoặc `PARTIAL`.

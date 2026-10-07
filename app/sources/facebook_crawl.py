@@ -10,6 +10,7 @@ import logging
 import re
 import time
 import random
+import random
 from datetime import datetime, timezone
 from pathlib import Path
 
@@ -18,22 +19,61 @@ from selenium.common.exceptions import (
     StaleElementReferenceException,
     WebDriverException,
 )
+from selenium.common.exceptions import (
+    StaleElementReferenceException,
+    WebDriverException,
+)
 from selenium.webdriver.chrome.options import Options
+from selenium.webdriver.common.by import By
 from selenium.webdriver.common.by import By
 from selenium.webdriver.support.ui import WebDriverWait
 
 from app.input import CanonicalUrl
 from app.models import (
     AccessInfo,
+    AccessInfo,
     AccessState,
     AcquisitionResult,
     ProfileImage,
+    ProfileType,
+    PublicPost,
     ProfileType,
     PublicPost,
     RawProfile,
 )
 
 log = logging.getLogger(__name__)
+
+LOGIN_MARKERS = ("login", "checkpoint", "captcha")
+LOGIN_TEXT_MARKERS = ("must log in", "log in to see", "đăng nhập để xem")
+NOT_FOUND_MARKERS = (
+    "this content isn't available right now",
+    "this page isn't available",
+    "nội dung này hiện không khả dụng",
+    "trang này không khả dụng",
+)
+MAX_POSTS = 15
+TITLE_SUFFIX = re.compile(r"\s*[|–-]\s*facebook\s*$", re.IGNORECASE)
+PUBLIC_PAGE_MARKERS = (
+    "official page",
+    "official account",
+    "page chính thức",
+    "trang chính thức",
+)
+GENERIC_TITLES = frozenset(
+    {
+        "facebook",
+        "log in",
+        "log into facebook",
+        "log in to facebook",
+        "đăng nhập facebook",
+    }
+)
+
+
+def _is_login_redirect(url: str) -> bool:
+    return any(marker in url.casefold() for marker in LOGIN_MARKERS)
+
 
 LOGIN_MARKERS = ("login", "checkpoint", "captcha")
 NOT_FOUND_MARKERS = (
@@ -69,13 +109,28 @@ class FacebookSeleniumSource:
     """Read visible profile content using a persistent, authenticated browser session."""
 
     name = "facebook_selenium"
-
+    
     def __init__(
-        self, enabled: bool, timeout_seconds: int = 20, headless: bool = True
+        self, enabled: bool, settings: any, timeout_seconds: int = 20
     ) -> None:
         self.enabled = enabled
         self.timeout_seconds = timeout_seconds
-        self.headless = True  # ĐÃ SỬA: Khai báo rõ ràng biến cấu hình headless
+        
+        self.headless = getattr(settings, "selenium_headless", True)  
+        
+        raw_cookie = getattr(settings, "facebook_cookie", None)
+        self.cookie_string = raw_cookie.get_secret_value() if raw_cookie else None
+
+
+    def _failure(
+        self, url: CanonicalUrl, state: AccessState, note: str
+    ) -> AcquisitionResult:
+        return AcquisitionResult(
+            canonical_url=url.url,
+            access_state=state,
+            source_name=self.name,
+            limitations=[note],
+        )
 
     def _human_scroll(self, driver: webdriver.Chrome) -> None:
         """Giả lập hành vi cuộn lướt ngẫu nhiên tránh hệ thống AI của Facebook quét bot."""
@@ -114,12 +169,12 @@ class FacebookSeleniumSource:
             driver.get("https://facebook.com")
             time.sleep(2)
 
-            # --- BƯỚC 2: NẠP COOKIE TÀI KHOẢN CỦA BẠN VÀO TRÌNH DUYỆT ---
-            # Hãy thay chuỗi cookie thật của bạn vào biến RAW_COOKIE dưới đây
-            RAW_COOKIE = "c_user=61554776605426;xs=21%3AkrHAg5-DCSvatQ%3A2%3A1791355735%3A-1%3A-1%3A%3AAczA1fD0iBSjwlNfZDISXA_vOY2R4Trzh-tTFJWjqw;fr=1lOe770wDGJNSSvxE.AWdQ1zvWyvUsv6JIX5I9-sf0QxfbBfO00vQMbu024IrYi8GTFCA.BqxiDh..AAA.0.0.BqxiDh.AWeo8Hb5Y5zei3__n8th2LlR2Ak"
+            if not self.cookie_string:
+                log.warning("FacebookSeleniumSource: Thiếu cấu hình FACEBOOK_COOKIE trong file .env.")
+                return self._failure(url, AccessState.LOGIN_REQUIRED, "Thiếu thiết lập Token Cookie.")
 
             log.info("Đang tiến hành nạp Cookie vào phiên chạy ngầm...")
-            for item in RAW_COOKIE.split(";"):
+            for item in self.cookie_string.split(";"):
                 if "=" in item:
                     name, value = item.strip().split("=", 1)
                     try:
@@ -132,7 +187,7 @@ class FacebookSeleniumSource:
                             }
                         )
                     except Exception as e:
-                        log.warning(f"Không thể nạp thành phần cookie {name}: {e}")
+                        log.debug(f"Bỏ qua thành phần cookie phụ {name}: {e}")
 
             driver.refresh()
             time.sleep(3)
@@ -162,6 +217,13 @@ class FacebookSeleniumSource:
                 page_text = driver.find_element(By.TAG_NAME, "body").text
             except StaleElementReferenceException:
                 page_text = ""
+
+            if any(marker in page_text.casefold() for marker in LOGIN_TEXT_MARKERS):
+                return self._failure(
+                    url,
+                    AccessState.LOGIN_REQUIRED,
+                    "Facebook yêu cầu đăng nhập để xem nội dung.",
+                )
 
             if any(marker in page_text.casefold() for marker in NOT_FOUND_MARKERS):
                 return self._failure(
@@ -290,9 +352,7 @@ class FacebookSeleniumSource:
             if avatar_url and avatar_url == cover_url:
                 avatar_url = None
             preview_image_url = self._meta_content(driver, "og:image")
-            profile_image = _profile_image(
-                avatar_url, cover_url, preview_image_url
-            )
+            profile_image = _profile_image(avatar_url, cover_url, preview_image_url)
             profile_image_url = profile_image.url if profile_image else None
 
             if not display_name and not posts and not profile_image_url:
@@ -376,7 +436,7 @@ class FacebookSeleniumSource:
             avatar_images = driver.find_elements(
                 By.XPATH,
                 "//div[@role='main']//svg[@aria-label='profile picture']//image | "
-                "//div[@role='main']//svg[@aria-label='ảnh đại diện']//image"
+                "//div[@role='main']//svg[@aria-label='ảnh đại diện']//image",
             )
             for img in avatar_images:
                 try:
@@ -386,7 +446,9 @@ class FacebookSeleniumSource:
                         or ""
                     )
                     if source.startswith("https://") and "fbcdn.net" in source:
-                        log.info("🎉 Đã tìm thấy link ảnh đại diện qua thẻ SVG/image hệ thống.")
+                        log.info(
+                            "🎉 Đã tìm thấy link ảnh đại diện qua thẻ SVG/image hệ thống."
+                        )
                         return source
                 except StaleElementReferenceException:
                     continue
@@ -406,11 +468,11 @@ class FacebookSeleniumSource:
                     "ảnh đại diện",
                     "ảnh hồ sơ",
                 }
-                labels_cover = any(
-                    marker in label for marker in ("cover", "ảnh bìa")
-                )
+                labels_cover = any(marker in label for marker in ("cover", "ảnh bìa"))
                 # Tối ưu: Dùng cơ chế tìm kiếm chứa chuỗi (contains) hoặc so khớp tương đối thay vì bằng tuyệt đối
-                is_display_name = bool(expected_name) and (expected_name in label or label in expected_name)
+                is_display_name = bool(expected_name) and (
+                    expected_name in label or label in expected_name
+                )
 
                 if labels_cover or not (explicitly_named or is_display_name):
                     continue
@@ -449,11 +511,7 @@ class FacebookSeleniumSource:
             if expected_name and expected_name in labels:
                 identifies_avatar = True
 
-            if (
-                source.startswith("https://")
-                and identifies_avatar
-                and not is_cover
-            ):
+            if source.startswith("https://") and identifies_avatar and not is_cover:
                 return source
 
         return None
@@ -487,23 +545,11 @@ class FacebookSeleniumSource:
                 ).casefold()
             except StaleElementReferenceException:
                 continue
-            if (
-                source.startswith("https://")
-                and any(marker in labels for marker in ("cover", "ảnh bìa"))
+            if source.startswith("https://") and any(
+                marker in labels for marker in ("cover", "ảnh bìa")
             ):
                 return source
         return None
-
-
-def _failure(
-    self, url: CanonicalUrl, state: AccessState, note: str
-) -> AcquisitionResult:
-    return AcquisitionResult(
-        canonical_url=url.url,
-        access_state=state,
-        source_name=self.name,
-        limitations=[note],
-    )
 
 
 def _profile_image(

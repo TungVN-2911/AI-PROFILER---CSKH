@@ -8,11 +8,12 @@ from app.config import load_settings
 from app.guardrails import Violation
 from app.llm.base import LLMError
 from app.llm.fake import FakeLLMClient
+from app.models import AccessInfo, AccessState, AcquisitionResult, RawProfile
 from app.pipeline import PipelineOptions, run_pipeline
 from app.schema import PartialOutput, SuccessOutput, parse_output, to_json_dict
 from tests.test_guardrails import CLEAN
 
-SETTINGS = load_settings(env={}, dotenv_path=None)
+SETTINGS = load_settings(env={}, dotenv_path=None, overrides={"public_browser_enabled": False})
 RICH_URL = "https://www.facebook.com/fixture.minh.anh"
 DET = PipelineOptions(mode="deterministic")
 
@@ -74,6 +75,39 @@ def test_live_login_wall():
     assert result.evidence.access_state.value == "LOGIN_REQUIRED"
 
 
+def test_default_public_browser_source_is_used_for_unknown_url(monkeypatch):
+    requested = []
+    url = "https://www.facebook.com/public.browser.user"
+
+    class _PublicBrowser:
+        def __init__(self, enabled):
+            assert enabled is True
+
+        def acquire(self, canonical_url):
+            requested.append(canonical_url.url)
+            raw = RawProfile(
+                facebook_url=canonical_url.url,
+                collection_method="public_browser",
+                display_name="Public Browser User",
+                access=AccessInfo(state=AccessState.PARTIAL),
+            )
+            return AcquisitionResult(
+                canonical_url=canonical_url.url,
+                access_state=AccessState.PARTIAL,
+                raw=raw,
+                source_name="facebook_selenium",
+            )
+
+    monkeypatch.setattr(pipeline, "FacebookSeleniumSource", _PublicBrowser)
+    default_settings = load_settings(env={}, dotenv_path=None)
+
+    result = run_pipeline(url, DET, default_settings)
+
+    assert requested == [url]
+    assert result.evidence.sources_used == ["facebook_selenium"]
+    assert result.evidence.fact_ledger[0].statement == "Public Browser User"
+
+
 def test_private_profile_fixture():
     result = run("https://www.facebook.com/fixture.private.user")
     assert_partial(result, "PRIVATE_PROFILE:")
@@ -112,20 +146,40 @@ def test_insufficient_data(tmp_path):
 def test_live_meta_bio_clauses_pass_sufficiency_gate_without_image():
     body = """<html><head>
     <meta property="og:title" content="Trinh Trinh | Facebook">
-    <meta property="og:description" content="16.191 người theo dõi · 19.004 người đang nói về điều này. Người sáng tạo nội dung số">
+    <meta property="og:description" content="16.191 người theo dõi · 19.004 người đang nói về điều này. Người sáng tạo nội dung số · Yêu mèo · Sống tại Huế">
     </head></html>"""
     result = run(
         "https://www.facebook.com/live.user",
         **live(lambda request: httpx.Response(200, text=body, headers={"content-type": "text/html"})),
     )
     assert_partial(result, "NO_IMAGE:")
-    bio_facts = [fact for fact in result.evidence.fact_ledger if fact.category == "bio"]
-    assert len(bio_facts) == 3
+    bio_facts = [fact for fact in result.evidence.fact_ledger if fact.category in {"bio", "metric"}]
+    assert len(bio_facts) == 5
     assert [fact.statement for fact in bio_facts] == [
         "16.191 người theo dõi",
         "19.004 người đang nói về điều này",
         "Người sáng tạo nội dung số",
+        "Yêu mèo",
+        "Sống tại Huế",
     ]
+    assert [fact.category for fact in bio_facts[:2]] == ["metric", "metric"]
+    assert result.evidence.profile_type == "UNKNOWN"
+    assert result.evidence.requires_human_review is True
+
+
+def test_public_page_is_not_processed_as_a_personal_profile():
+    body = """<html><head>
+    <meta property="og:title" content="Brand Page | Facebook">
+    <meta property="og:description" content="Đây là Page chính thức của Brand Page · 10.000 người theo dõi">
+    <meta property="og:image" content="https://scontent.example/avatar.jpg">
+    </head></html>"""
+    result = run(
+        "https://www.facebook.com/brand.page",
+        **live(lambda request: httpx.Response(200, text=body, headers={"content-type": "text/html"})),
+    )
+    assert_partial(result, "UNSUPPORTED_PROFILE_TYPE:")
+    assert result.evidence.profile_type == "PUBLIC_PAGE"
+    assert not any(f.source.startswith("vision:") for f in result.evidence.fact_ledger)
 
 
 def test_explicit_profile_file_takes_precedence_over_live_fetch(tmp_path):
@@ -175,7 +229,7 @@ def test_unreadable_image_is_no_image(tmp_path):
 def test_all_vision_observations_rejected_is_no_image(tmp_path):
     (tmp_path / "a.png").write_bytes(FAKE_PNG)
     path, url = write_profile(tmp_path, images=[{"kind": "avatar", "path": str(tmp_path / "a.png")}], **ENOUGH_FACTS)
-    fake = FakeLLMClient(vision_responses=[{"image_usable": True, "observations": [{"text": "appears to show a mother", "confidence": 0.9}]}])
+    fake = FakeLLMClient(vision_responses=[{"image_usable": True, "observations": [{"text": "appears to show a mother", "confidence": 0.9}], "estimate": None}])
     result = run(url, PipelineOptions(mode="auto", profile_file=path), llm_client=fake)
     assert_partial(result, "NO_IMAGE:")
     assert "không có quan sát ảnh nào qua được kiểm tra" in result.output.error_note
@@ -186,7 +240,7 @@ def test_accepted_vision_observation_allows_success(tmp_path):
     path, url = write_profile(tmp_path, images=[{"kind": "avatar", "path": str(tmp_path / "a.png")}], **ENOUGH_FACTS)
     fake = FakeLLMClient(
         responses=[LLMError("timeout", "x")] * 3,
-        vision_responses=[{"image_usable": True, "observations": [{"text": "appears to show a cat on a sofa", "confidence": 0.9}]}],
+        vision_responses=[{"image_usable": True, "observations": [{"text": "appears to show a cat on a sofa", "confidence": 0.9}], "estimate": None}],
     )
     result = run(url, PipelineOptions(mode="auto", profile_file=path), llm_client=fake)
     assert isinstance(result.output, SuccessOutput)

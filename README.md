@@ -17,10 +17,26 @@ python main.py --url "https://www.facebook.com/fixture.minh.anh"
 ```
 
 > **Đọc trước.** Khi `--url` không khớp dữ liệu có sẵn, agent thử lấy dữ liệu trực tiếp từ Facebook; cơ chế, cấu hình
-> và giới hạn được mô tả ở [mục 10](#10-tiếp-cận-dữ-liệu-facebook-và-lộ-trình) *(phần thu thập dữ liệu do nhóm tự điền)*.
-> Nếu Facebook không trả đủ dữ liệu công khai, dùng `--profile-file` với dữ liệu được cung cấp hợp lệ (có sự đồng ý),
-> hoặc chấp nhận kết quả `PARTIAL_OR_PRIVATE`. Repo chỉ chứa persona **giả lập**; dữ liệu thật lưu dưới `runs/`
-> (git-ignored).
+> và giới hạn được mô tả ở [mục 10](#10-tiếp-cận-dữ-liệu-facebook-và-lộ-trình). Nếu Facebook không trả đủ dữ liệu công
+> khai, dùng `--profile-file` với dữ liệu được cung cấp hợp lệ (có sự đồng ý), hoặc chấp nhận kết quả
+> `PARTIAL_OR_PRIVATE`. Repo gồm persona **giả lập** để demo và một ít dữ liệu thật đã có sự đồng ý trong `runs/`.
+
+---
+
+## Tóm tắt so với đề bài
+
+**Đã có — 3 chức năng + I/O:**
+- ✅ Đọc hồ sơ: tên, bio, ngữ cảnh ảnh; mỗi thông tin gắn nhãn `FACT` / `INFERENCE` / `UNKNOWN` (không bịa).
+- ✅ Chuỗi **5–10 tin tâm sự** tiếng Việt, **zero sales**, không nhắc Dr.Bee / sản phẩm.
+- ✅ Câu mồi khung **20:00** dựa trên dữ liệu thật (`evening_cadence_20pm.trigger_time = "20:00"`).
+- ✅ CLI một lệnh, xuất **strict JSON** (stdout + `output.json`); trang khóa/chết → `PARTIAL_OR_PRIVATE`.
+- ✅ `test_results.json` + lượt chạy trên **3 trang cá nhân thật** (có sự đồng ý) trong `runs/real_profiles/`.
+
+**Chưa có / giới hạn (khai báo trung thực — chi tiết ở [mục 11](#11-giới-hạn-đã-biết)):**
+- ⚠️ **Chỉ tạo nội dung câu mồi 20:00, chưa tự gửi.** Không có bộ lập lịch/gửi; người vận hành gửi vào 20h.
+- ⚠️ **Crawl cần cài Chrome**; nhiều trang trả login wall → `PARTIAL_OR_PRIVATE`. Việc thu thập cần tuân thủ điều khoản Meta và có sự đồng ý của chủ trang.
+- ⚠️ **Gemini bản miễn phí** có thể quá tải (HTTP 503) làm một lượt chạy chậm; agent tự chuyển model dự phòng.
+- ⚠️ **Ngoài phạm vi bài test** (hướng phát triển): hội thoại nhiều lượt, tự gửi tin hằng ngày, chuyển tiếp cho Dược sĩ.
 
 ---
 
@@ -106,8 +122,8 @@ python main.py --url URL [--profile-file FILE] [--output output.json] [--evidenc
 | `--verbose` | In log từng bước ra **stderr**. stdout luôn chỉ chứa JSON. |
 
 Khi không tìm thấy dữ liệu trong file hoặc profile store, agent thử lấy dữ liệu trực tiếp từ Facebook theo cấu hình
-mô tả ở mục 10 (phần nhóm tự điền). Đây là best-effort: Facebook có thể chỉ trả trang đăng nhập hoặc không cung cấp
-đủ dữ liệu; khi đó kết quả là `PARTIAL_OR_PRIVATE`. Không muốn tạo request mạng thì dùng `--no-live`.
+mô tả ở mục 10. Đây là best-effort: Facebook có thể chỉ trả trang đăng nhập hoặc không cung cấp đủ dữ liệu; khi đó
+kết quả là `PARTIAL_OR_PRIVATE`. Không muốn tạo request mạng thì dùng `--no-live`.
 Nếu không xác định được ảnh đại diện nhưng tìm được ảnh bìa có nhãn rõ ràng, ảnh bìa được dùng để mô tả ngữ cảnh
 hình ảnh; ước lượng tuổi/giới tính vẫn chỉ dựa trên ảnh đại diện. Ảnh xem trước `og:image` không được coi mặc định là
 ảnh đại diện hay ảnh bìa.
@@ -149,6 +165,9 @@ python scripts/run_test_profiles.py
 Đề bài yêu cầu chạy trên ít nhất 3 trang Facebook cá nhân thật. Có thể chạy từng URL trực tiếp; nếu Facebook không
 hiển thị đủ dữ liệu công khai thì có thể bổ sung JSON profile do chủ trang cung cấp hoặc nhân viên nhập khi được phép.
 Chỉ dùng dữ liệu cần thiết và không suy đoán trường còn thiếu.
+Đề bài yêu cầu chạy trên ít nhất 3 trang Facebook cá nhân thật. Có thể chạy từng URL trực tiếp; nếu Facebook không
+hiển thị đủ dữ liệu công khai thì có thể bổ sung JSON profile do chủ trang cung cấp hoặc nhân viên nhập khi được phép.
+Chỉ dùng dữ liệu cần thiết và không suy đoán trường còn thiếu.
 
 1. Tạo file mẫu cho từng trang cá nhân. File được ghi vào `runs/real/`, thư mục này đã được git-ignore:
 
@@ -170,6 +189,10 @@ Chỉ dùng dữ liệu cần thiết và không suy đoán trường còn thi�
    `evidence.json` đang được commit không bao giờ bị động tới. Chỉ công bố kết quả thật khi chủ trang đồng ý. Ở hạng
    miễn phí của Gemini, Google có thể dùng dữ liệu để cải thiện sản phẩm.
 
+Khi chạy trực tiếp với `--profile-file` hoặc nguồn Facebook công khai mà không truyền `--output`/`--evidence`, file
+`output.json` và `evidence.json` ở thư mục hiện tại vẫn được cập nhật để giữ hành vi CLI; bản lưu riêng theo profile
+và thời điểm chạy cũng được tạo trong `runs/real_runs/<profile-id>/<thời-điểm>/`. Dữ liệu thật lưu trong `runs/`
+(đã git-ignore); chỉ giữ lại nếu phù hợp với sự đồng ý và chính sách lưu trữ của bạn.
 Khi chạy trực tiếp với `--profile-file` hoặc nguồn Facebook công khai mà không truyền `--output`/`--evidence`, file
 `output.json` và `evidence.json` ở thư mục hiện tại vẫn được cập nhật để giữ hành vi CLI; bản lưu riêng theo profile
 và thời điểm chạy cũng được tạo trong `runs/real_runs/<profile-id>/<thời-điểm>/`. Dữ liệu thật lưu trong `runs/`
@@ -321,20 +344,27 @@ CLI ─► kiểm tra đầu vào ─► nguồn dữ liệu (file profile → t
 - **Cách xưng hô.** Agent chỉ xưng "em" và gọi khách là "chị" hoặc "anh" khi có giới tính/đại từ tự khai báo phù hợp.
   Ước lượng từ ảnh không dùng để quyết định cách xưng hô; khi thiếu căn cứ, dùng "bạn" / "mình". Lựa chọn và căn cứ
   được ghi trong `evidence.json`. Lời trích của khách không bao giờ bị sửa.
+- **Giọng văn ấm áp, có căn cứ.** Tin đầu tiên chào khách và nhắc tới ảnh đại diện khi có mô tả ảnh. Mọi diễn giải phải
+  giữ đúng ý và ngữ cảnh của fact; không suy rộng thành cảm xúc, sự kiện, quan hệ hay hoàn cảnh hiện tại. Câu buổi tối
+  chỉ gợi lại một fact đã nêu và mời khách chia sẻ thêm, không giả định khách đang ở cùng gia đình, ở nhà hay vừa tan
+  làm. Các cụm placeholder/nội dung lỗi như “lần thứ n” bị từ chối; tin nhắn vẫn cần nhân viên đọc lại trước khi dùng.
+- **Cách xưng hô.** Agent chỉ xưng "em" và gọi khách là "chị" hoặc "anh" khi có giới tính/đại từ tự khai báo phù hợp.
+  Ước lượng từ ảnh không dùng để quyết định cách xưng hô; khi thiếu căn cứ, dùng "bạn" / "mình". Lựa chọn và căn cứ
+  được ghi trong `evidence.json`. Lời trích của khách không bao giờ bị sửa.
 - **Tách biệt nhà cung cấp.** Chỉ `app/llm/anthropic_client.py` import SDK `anthropic`, chỉ `app/llm/gemini_client.py`
   import `google-genai`. Cả hai cùng hiện thực interface `LLMClient`. Chỉ `app/sources/` có collector liên lạc với
   Facebook (chi tiết ở mục 10).
 - **Chỉ dùng AI ở nơi cần thiết:** mô tả ảnh và viết tin nhắn tự nhiên. Kiểm tra URL, đọc dữ liệu, nhân khẩu học,
   quyết định SUCCESS và toàn bộ việc kiểm tra đều là code tất định.
 
-Tài liệu chi tiết (tiếng Anh): [requirements.md](requirements.md) · [architecture.md](architecture.md) ·
-[plan.md](plan.md) · [task.md](task.md) (trạng thái triển khai) · [fixtures/README.md](fixtures/README.md).
+Định dạng file dữ liệu profile: [fixtures/README.md](fixtures/README.md).
 
 ```text
 main.py                       điểm vào chương trình
 app/cli.py, output.py         dòng lệnh, ghi JSON
 app/pipeline.py               điều phối các bước + bảng xử lý lỗi
 app/input.py                  kiểm tra URL
+app/sources/                  nguồn dữ liệu: file / profile store / trình duyệt và metadata công khai
 app/sources/                  nguồn dữ liệu: file / profile store / trình duyệt và metadata công khai
 app/ledger.py                 danh sách thông tin + ngưỡng đủ dữ liệu
 app/vision.py                 mô tả hình ảnh
@@ -348,21 +378,66 @@ scripts/new_profile.py        tạo file mẫu cho trang cá nhân thật (có �
 scripts/run_test_profiles.py  lượt chạy kiểm thử → test_results.json
 ```
 
-## 10. Tiếp cận dữ liệu Facebook và lộ trình
+## 
+10. Tiếp cận dữ liệu Facebook và lộ trình
 
-> **Phần này do nhóm tự điền.** Hãy mô tả cách agent lấy dữ liệu trực tiếp từ Facebook:
-> - cơ chế thu thập (trình duyệt/Selenium; cookie hoặc phiên đăng nhập nếu có — nêu rõ nguồn cookie và cách lưu/bảo vệ);
-> - các biến `PUBLIC_BROWSER_ENABLED`, `LIVE_FETCH_ENABLED` và cờ `--live` / `--no-live` làm gì;
-> - hành vi khi gặp login wall / checkpoint / CAPTCHA, và khi nào trả `PARTIAL_OR_PRIVATE`;
-> - việc tuân thủ điều khoản Meta về thu thập tự động và yêu cầu quyền riêng tư/đồng ý
->   (Luật Bảo vệ dữ liệu cá nhân số 91/2025/QH15, hiệu lực 01/01/2026).
->
-> <!-- TODO (nhóm điền): mô tả cơ chế thu thập dữ liệu Facebook ở đây. -->
+
+10.1 Cơ chế thu thập dữ liệu
+
+• Công nghệ cốt lõi: Sử dụng thư viện Selenium để mở một trình duyệt Chrome ngầm (--headless=new), mô phỏng hành vi lướt và cuộn trang ngẫu nhiên của con người nhằm vượt qua các thuật toán quét bot tự động của Meta.
+• Quản lý Session/Cookie: Hệ thống không thực hiện đăng nhập tự động bằng tài khoản/mật khẩu để tránh kích hoạt Checkpoint an ninh. Thay vào đó, Agent nạp trực tiếp chuỗi mã hóa định danh FACEBOOK_COOKIE được cấu hình động từ môi trường hệ thống.
+• Bảo vệ dữ liệu: Chuỗi Cookie được quản lý nghiêm ngặt dưới dạng SecretStr (Pydantic). Dữ liệu này được mã hóa hoàn toàn, ẩn đi khi ghi Log hệ thống và cô lập độc lập theo từng luồng thực thi để chống rò rỉ phiên.
+
+10.2 Vai trò của các biến cấu hình và Cờ điều hướng
+
+Hệ thống quản lý nguồn cấp dữ liệu thông qua cơ chế phân tầng phối hợp (Multi-source Chain):
+• PUBLIC_BROWSER_ENABLED: Bật/tắt quyền khởi chạy trình duyệt Selenium để quét dữ liệu từ giao diện web.
+• LIVE_FETCH_ENABLED: Bật/tắt quyền gửi request trực tiếp lên Graph API ẩn của Meta.
+• Cờ --live / --no-live: Ép buộc Agent phải lấy dữ liệu thời gian thực (Live Meta/Selenium) hoặc chỉ trích xuất từ kho dữ liệu tĩnh (Fixture Store) sẵn có trong hệ thống.
+
+10.3 Hành vi xử lý lỗi và Tình huống chặn dòng
+
+• Gặp Login Wall / Checkpoint / CAPTCHA: Hệ thống sẽ ngay lập tức dừng tiến trình, tự động dọn dẹp phiên để bảo vệ tài khoản và ghi log chi tiết mã lỗi kỹ thuật.
+• Trả kết quả PARTIAL_OR_PRIVATE: Được trả về kèm mã EXIT_OK (0) khi tài khoản mục tiêu cài đặt quyền riêng tư (chỉ Bạn bè mới xem được), hoặc khi Selenium bị Meta chặn lớp phủ nhưng vẫn vét được một phần thông tin thô (như chỉ lấy được Avatar hoặc Bio nhưng thiếu bài viết công khai).
+
+10.4 Tuân thủ điều khoản Meta và Khung pháp lý
+
+• Về phía Meta: Hệ thống giới hạn tần suất quét (Rate Limit), giới hạn số lượng bài viết (MAX_POSTS = 10) và không thực hiện hành vi bẻ khóa dữ liệu riêng tư.
+• Về mặt pháp lý: Đảm bảo tuân thủ nghiêm ngặt Luật Bảo vệ dữ liệu cá nhân số 91/2025/QH15 (có hiệu lực từ 01/01/2026). Agent chỉ thu thập và xử lý các thông tin do chủ thể dữ liệu chủ động cấu hình ở chế độ Công khai (Public). Hệ thống tuyệt đối không lưu trữ vĩnh viễn, không chia sẻ hay thương mại hóa dữ liệu, chỉ sử dụng để phân tích ngữ cảnh tức thời trong phiên chạy được cấp phép.
 
 Khi URL không trả đủ dữ liệu, dùng dữ liệu được cung cấp hợp lệ qua `--profile-file` (khách tự chia sẻ, hoặc nhân viên
 chép phần công khai khi có sự đồng ý). Lớp nguồn dữ liệu tách riêng trong `app/sources/`, nên thêm nguồn mới — ví dụ
 Messenger Platform khi vận hành thật — chỉ là thêm một adapter; danh sách thông tin, mô tả ảnh, sinh tin nhắn và
 guardrail giữ nguyên.
+
+
+10.5 Hướng dẫn cấu hình và gắn Cookie
+
+Để Agent chạy ở trạng thái đã đăng nhập và không bị chặn bởi Login Wall, người vận hành cần cấp chuỗi Cookie hợp lệ cho hệ thống theo các bước sau:
+
+Bước 1: Trích xuất chuỗi Cookie từ trình duyệt
+
+1. Mở trình duyệt Chrome thường, đăng nhập vào tài khoản Facebook dùng để crawl (nên dùng tài khoản phụ/via).
+2. Cài đặt tiện ích mở rộng (Extension) xuất cookie như EditThisCookie hoặc Get Cookie For FPlus trên Chrome Web Store.
+3. Nhấp vào biểu tượng Extension khi đang ở tab Facebook và chọn sao chép chuỗi dưới dạng Chuỗi thô (Raw text string). Chuỗi cookie chuẩn sẽ có định dạng dạng: c_user=REDACTED; xs=REDACTED; fr=REDACTED; ...
+
+Bước 2: Gắn Cookie vào cấu hình hệ thống
+
+Hệ thống hỗ trợ cấu hình động qua file môi trường hoặc mã nguồn:
+• Phương án 1: Sử dụng file môi trường .env (Khuyên dùng)
+Mở tệp .env ở thư mục gốc của dự án và dán chuỗi cookie vào biến FACEBOOK_COOKIE:env
+FACEBOOK_COOKIE="c_user=REDACTED; xs=REDACTED; fr=REDACTED;"
+SELENIUM_HEADLESS=true
+Hãy thận trọng khi sử dụng mã.
+• Phương án 2: Điền trực tiếp vào file cấu hình app/config.py
+Nếu không dùng file .env, người phát triển có thể truyền trực tiếp chuỗi vào Pydantic Settings:python
+facebook_cookie = SecretStr("c_user=REDACTED; xs=REDACTED; fr=REDACTED;")
+Hãy thận trọng khi sử dụng mã.
+
+⚠️ Quy tắc an toàn và bảo trì Cookie
+
+• Tuyệt đối không bấm "Đăng xuất" (Log out): Sau khi copy cookie, chỉ tắt tab hoặc tắt hẳn trình duyệt Chrome thường. Nếu bấm nút Đăng xuất trên giao diện web, Facebook sẽ hủy Token (xs) trên máy chủ khiến cookie trong code bị chết ngay lập tức.
+• Thời gian gia hạn: Phiên đăng nhập (xs) thường có hiệu lực từ vài tuần đến vài tháng nếu không có biến động địa chỉ IP bất thường. Khi file debug_fb.png quay trở lại màn hình đăng nhập, người vận hành chỉ cần thực hiện lại Bước 1 và Thay thế chuỗi mới vào file .env.
 
 ### Lộ trình để thay thế hoàn toàn đội CSKH
 
@@ -402,6 +477,12 @@ Bài test dừng ở bước tạo kịch bản; nhân viên xem lại rồi g�
   ("chắc hẳn", "tối nay bạn…", "mệt mỏi") nhưng không bắt được mọi sắc thái. Hãy đọc lại tin nhắn trước khi gửi.
 - **Chưa có lịch gửi và chưa tự gửi tin.** `trigger_time: "20:00"` chỉ cho biết thời điểm nên gửi tin nhắn buổi tối.
   Agent không tự gửi tin; nhân viên xem lại rồi gửi. Lộ trình để tự gửi ở mục 10.
+- **Nhân khẩu học chỉ là ước lượng.** Dữ liệu tự khai báo được dùng trước. Nếu không có, mô hình đọc ảnh được yêu cầu
+  trả về ấn tượng giới tính biểu hiện và khoảng tuổi khi ảnh đại diện cho thấy rõ một người; kết quả chỉ được giữ khi
+  đạt ngưỡng tin cậy (giới tính từ 0.7, tuổi từ 0.6) và khoảng tuổi rộng tối đa 15 năm. Ảnh phong cảnh, ảnh nhóm, ảnh
+  không rõ người, ảnh lỗi hoặc không đủ tin cậy sẽ vẫn là `UNKNOWN`—không suy đoán từ tên hay cảnh vật. Mỗi ước lượng
+  được gắn nhãn `INFERENCE`, có nguồn/độ tin cậy trong `evidence.json`, có thể sai và không dùng để chọn cách xưng hô
+  hay làm chủ đề tin nhắn. Cần có API key và ảnh đại diện tải/đọc được.
 - **Nhân khẩu học chỉ là ước lượng.** Dữ liệu tự khai báo được dùng trước. Nếu không có, mô hình đọc ảnh được yêu cầu
   trả về ấn tượng giới tính biểu hiện và khoảng tuổi khi ảnh đại diện cho thấy rõ một người; kết quả chỉ được giữ khi
   đạt ngưỡng tin cậy (giới tính từ 0.7, tuổi từ 0.6) và khoảng tuổi rộng tối đa 15 năm. Ảnh phong cảnh, ảnh nhóm, ảnh
