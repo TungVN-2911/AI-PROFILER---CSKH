@@ -11,6 +11,7 @@ Every description is screened for sensitive attributes. Any failure yields `NOT_
 from __future__ import annotations
 
 import logging
+import re
 from dataclasses import dataclass, field
 from pathlib import Path
 
@@ -18,7 +19,7 @@ import httpx
 
 from app.config import PROJECT_ROOT
 from app.ledger import append_fact, without_facts
-from app.lexicons import find_sensitive
+from app.lexicons import EMAIL_PATTERN, PHONE_PATTERN, URL_PATTERN, find_sensitive
 from app.llm.base import LLMClient, LLMError, VisionEstimate
 from app.models import EpistemicStatus, FactLedger, ProfileImage, RawProfile
 
@@ -45,17 +46,24 @@ VISION_INSTRUCTIONS = """You describe a public social-media profile image for a 
 Rules:
 - Describe ONLY concrete things that are visible: objects, activities, setting, clothing style, text visible in the image.
 - Write every observation in Vietnamese, starting with "Ảnh có vẻ cho thấy".
-- Refer to any person only as "a person" or "people". Do NOT state or guess gender, age, ethnicity, religion,
+- If a person is visible, refer to them in Vietnamese as "một người" or "người này"; never use English phrases
+  such as "a person". Do NOT state or guess gender, age, ethnicity, religion,
   health, body shape, sexual orientation, political views, relationships or family roles (e.g. never "mother", "couple").
 - Do NOT guess the person's job, income, personality or life situation.
 - Give at most 5 observations, each with a confidence between 0 and 1. Omit anything you are unsure about.
 - If the image is blank, unreadable, a logo/default avatar, or shows nothing describable, set image_usable to false.
 
-Separate field "estimate" (never mention any of this in the observations):
-- Set single_person_visible to true only if exactly one person is clearly visible as the main subject.
-- perceived_gender: the gender presentation as it appears ("female", "male"), or "unclear" when unsure; give a confidence.
-- age_min / age_max: a rough apparent age range of that person (at most 15 years wide) with a confidence; null when unsure.
-- These are rough perceived impressions used only to choose a polite form of address. They are not facts.
+Required separate field "estimate" (never mention any of this in the observations):
+- Always return the "estimate" key. Use null only when the image is unusable.
+- If exactly one person's face/body is clearly visible as the main subject, set single_person_visible to true.
+- For that person, estimate visible gender presentation as "female" or "male" only when reasonably clear;
+  otherwise use "unclear". Give gender_confidence from 0 to 1.
+- Give a rough apparent age_min/age_max range for that person, no wider than 15 years, only when visually
+  estimable; otherwise set both to null and age_confidence to 0.
+- If no single person is clearly visible, set single_person_visible to false, perceived_gender to "unclear",
+  and age_min/age_max to null.
+- These are uncertain visual impressions, not the person's actual gender identity or verified age. They must
+  be labelled as INFERENCE downstream and must not be used to choose a form of address or personalize messages.
 - Never infer ethnicity, religion, health, sexual orientation, political views, relationships or family roles."""
 
 
@@ -138,11 +146,12 @@ def extract_visual_context(
 
     accepted: list[tuple[str, float]] = []
     for obs in vision.observations[:MAX_OBSERVATIONS]:
-        reason = _rejection_reason(obs.text, obs.confidence)
+        text = _normalize_observation_text(obs.text.strip())
+        reason = _rejection_reason(text, obs.confidence)
         if reason:
-            notes.append(f"loại quan sát ảnh ({reason}): {obs.text!r}")
+            notes.append(f"đã loại quan sát ảnh ({reason}).")
         else:
-            accepted.append((obs.text.strip(), obs.confidence))
+            accepted.append((text, obs.confidence))
     if not accepted:
         return VisualContextResult(
             "NOT_AVAILABLE: không có quan sát ảnh nào qua được kiểm tra", ledger, [], notes, estimate_ids
@@ -222,9 +231,19 @@ def _rejection_reason(text: str, confidence: float) -> str | None:
     hits = find_sensitive(text)
     if hits:
         return "thuộc tính nhạy cảm: " + ", ".join(f"{cat}={term}" for cat, term in hits)
+    if EMAIL_PATTERN.search(text) or PHONE_PATTERN.search(text) or URL_PATTERN.search(text):
+        return "có thể chứa thông tin liên hệ hoặc URL"
     if not any(p in text.lower() for p in HEDGE_PHRASES):
         return "không viết dưới dạng quan sát ('có vẻ cho thấy ...')"
     return None
+
+
+def _normalize_observation_text(text: str) -> str:
+    """Keep common model-generated person references natural and Vietnamese."""
+    text = re.sub(r"\bthe person\b", "người này", text, flags=re.IGNORECASE)
+    text = re.sub(r"\ba person\b", "một người", text, flags=re.IGNORECASE)
+    text = re.sub(r"\bpeople\b", "mọi người", text, flags=re.IGNORECASE)
+    return text
 
 
 class _ImageError(Exception):

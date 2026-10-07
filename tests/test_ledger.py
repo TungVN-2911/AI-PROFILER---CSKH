@@ -80,7 +80,54 @@ def test_image_without_alt_text_adds_no_fact():
 def test_source_prefix_uses_collection_method():
     ledger = build_ledger(raw(display_name="A", collection_method="live_meta"))
     assert ledger.facts[0].source == "live_meta:display_name"
-    assert build_ledger(raw(display_name="A")).facts[0].source == "provided:display_name"
+
+
+def test_public_browser_bio_is_split_into_groundable_clauses():
+    ledger = build_ledger(
+        raw(
+            display_name="A",
+            bio="Yêu mèo · Thích đọc sách",
+            collection_method="public_browser",
+        )
+    )
+    assert [fact.statement for fact in ledger.facts if fact.category == "bio"] == [
+        "Yêu mèo",
+        "Thích đọc sách",
+    ]
+
+
+def test_profile_name_repeated_in_bio_is_not_a_separate_fact():
+    ledger = build_ledger(
+        raw(
+            display_name="Vũ Trọng Đức",
+            bio="Vũ Trọng Đức · 1.189 người theo dõi · Yêu mèo",
+            collection_method="public_browser",
+        )
+    )
+    assert [fact.statement for fact in ledger.facts if fact.category == "bio"] == ["Yêu mèo"]
+    assert "Vũ Trọng Đức" not in [fact.statement for fact in ledger.usable_facts()]
+
+
+@pytest.mark.parametrize(
+    "boilerplate",
+    [
+        "Thanh Hưng is on Facebook",
+        "Join Facebook to connect with Thanh Hưng and others you may know",
+        "Facebook gives people the power to share and makes the world more open and connected.",
+        "Tham gia Facebook để kết nối với Thanh Hưng",
+    ],
+)
+def test_facebook_boilerplate_is_not_grounding_data(boilerplate):
+    ledger = build_ledger(
+        raw(
+            display_name="Thanh Hưng",
+            bio=boilerplate,
+            collection_method="public_browser",
+        )
+    )
+    assert [fact.category for fact in ledger.facts] == ["name"]
+    assert "bio" in ledger.unknown_fields
+    assert not ledger.usable_facts()
 
 
 def test_live_meta_bio_is_split_into_independent_verbatim_facts():
@@ -89,19 +136,49 @@ def test_live_meta_bio_is_split_into_independent_verbatim_facts():
         bio="16.191 người theo dõi · 19.004 người đang nói về điều này. Người sáng tạo nội dung số",
         collection_method="live_meta",
     ))
-    bio_facts = [fact for fact in ledger.facts if fact.category == "bio"]
+    bio_facts = [fact for fact in ledger.facts if fact.category in {"bio", "metric"}]
     assert [fact.statement for fact in bio_facts] == [
         "16.191 người theo dõi",
         "19.004 người đang nói về điều này",
         "Người sáng tạo nội dung số",
     ]
+    assert [fact.category for fact in bio_facts] == ["metric", "metric", "bio"]
     assert [fact.source for fact in bio_facts] == [
         "live_meta:bio[0]",
         "live_meta:bio[1]",
         "live_meta:bio[2]",
     ]
-    assert len(ledger.usable_facts()) == 3
-    assert evaluate_sufficiency(AccessState.PUBLIC, ledger, SETTINGS).ok
+    assert len(ledger.usable_facts()) == 1
+    assert not evaluate_sufficiency(AccessState.PUBLIC, ledger, SETTINGS).ok
+
+
+def test_facebook_boilerplate_posts_are_not_grounding_data():
+    ledger = build_ledger(
+        raw(
+            display_name="Thanh Hưng",
+            public_posts=[
+                {"text": "Join Facebook to connect with Thanh Hưng and others you may know"}
+            ],
+            collection_method="public_browser",
+        )
+    )
+    assert [fact.category for fact in ledger.facts] == ["name"]
+    assert "public_posts" in ledger.unknown_fields
+
+
+def test_contact_details_are_excluded_from_ledger_and_marked_unknown():
+    ledger = build_ledger(
+        raw(
+            display_name="Lan Chi",
+            bio="Người sáng tạo nội dung · Liên hệ 0912 345 678 hoặc lan@example.com",
+            public_posts=[{"text": "Xem thêm tại https://example.com/profile"}],
+        )
+    )
+    serialized_facts = " ".join(f.statement for f in ledger.facts)
+    assert "0912" not in serialized_facts
+    assert "lan@example.com" not in serialized_facts
+    assert "https://" not in serialized_facts
+    assert "contact_details_redacted" in ledger.unknown_fields
 
 
 def test_provided_bio_is_not_split():

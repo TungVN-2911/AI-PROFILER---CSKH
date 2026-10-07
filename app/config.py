@@ -27,12 +27,10 @@ ENV_VARS: dict[str, str] = {
     "llm_max_retries": "LLM_MAX_RETRIES",
     "output_language": "OUTPUT_LANGUAGE",
     "live_fetch_enabled": "LIVE_FETCH_ENABLED",
+    "public_browser_enabled": "PUBLIC_BROWSER_ENABLED",
     "profile_store_dir": "PROFILE_STORE_DIR",
     "min_grounding_facts": "MIN_GROUNDING_FACTS",
     "default_message_count": "DEFAULT_MESSAGE_COUNT",
-    "facebook_email": "FACEBOOK_EMAIL",
-    "facebook_password": "FACEBOOK_PASSWORD",
-    "selenium_headless": "SELENIUM_HEADLESS",
 }
 
 
@@ -55,12 +53,10 @@ class Settings(BaseModel):
     llm_max_retries: int = Field(default=2, ge=0, le=5)
     output_language: str = Field(default="vi", pattern=r"^[a-z]{2}$")
     live_fetch_enabled: bool = False
+    public_browser_enabled: bool = True
     profile_store_dir: Path = Field(default=Path("fixtures/profiles"), validate_default=True)
     min_grounding_facts: int = Field(default=2, ge=1)
     default_message_count: int = Field(default=10, ge=5, le=10)
-    facebook_email: str | None = None
-    facebook_password: SecretStr | None = None  # Dùng SecretStr để ẩn mật khẩu khi in log
-    selenium_headless: bool = True
 
     @field_validator("profile_store_dir")
     @classmethod

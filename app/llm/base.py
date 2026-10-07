@@ -38,12 +38,16 @@ class VisionObservation(BaseModel):
 
 
 class VisionEstimate(BaseModel):
-    """Perceived impression of the single main person in a profile picture. Never a fact."""
+    """Perceived visual impression of a profile-picture subject. Never a fact or identity claim."""
 
     model_config = ConfigDict(extra="forbid")
 
-    single_person_visible: bool = Field(description="True only if exactly one person is clearly visible as the main subject.")
-    perceived_gender: Literal["female", "male", "unclear"] = Field(description="Perceived gender presentation; 'unclear' if unsure.")
+    single_person_visible: bool = Field(
+        description="True only if exactly one person's face/body is clearly visible as the main subject."
+    )
+    perceived_gender: Literal["female", "male", "unclear"] = Field(
+        description="Visible gender presentation only, not actual gender identity; use unclear if uncertain."
+    )
     gender_confidence: float = Field(ge=0.0, le=1.0)
     age_min: int | None = Field(default=None, ge=0, le=120)
     age_max: int | None = Field(default=None, ge=0, le=120)
@@ -55,7 +59,9 @@ class VisionResult(BaseModel):
 
     image_usable: bool
     observations: list[VisionObservation] = Field(default_factory=list, max_length=5)
-    estimate: VisionEstimate | None = None
+    estimate: VisionEstimate | None = Field(
+        description="Always include this key. Use null if the image is unusable; otherwise return an explicit estimate, marking uncertain values unclear/null."
+    )
 
 
 class LLMClient(Protocol):

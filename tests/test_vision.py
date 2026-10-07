@@ -67,6 +67,7 @@ def test_valid_observations_become_inference_facts_with_vision_source(tmp_path):
             {
                 "image_usable": True,
                 "observations": [obs("appears to show a person holding a coffee cup"), obs("appears to show a bicycle", 0.8)],
+                "estimate": None,
             }
         ]
     )
@@ -85,6 +86,39 @@ def test_valid_observations_become_inference_facts_with_vision_source(tmp_path):
     assert not set(result.fact_ids) & {f.id for f in result.ledger.usable_facts()}
     call = fake.calls[0]
     assert call["media_type"] == "image/png" and call["instructions"] == VISION_INSTRUCTIONS
+    assert 'Always return the "estimate" key' in call["instructions"]
+
+
+def test_english_person_placeholder_is_normalized_in_visual_context(tmp_path):
+    description = "Ảnh có vẻ cho thấy a person đang mặc áo khoác màu kem."
+    fake = FakeLLMClient(
+        vision_responses=[
+            {
+                "image_usable": True,
+                "observations": [obs(description)],
+                "estimate": None,
+            }
+        ]
+    )
+
+    result = extract_visual_context(
+        local_image_profile(tmp_path), build_ledger(raw()), fake, base_dir=tmp_path
+    )
+
+    assert "a person" not in result.visual_context
+    assert "một người đang mặc áo khoác màu kem" in result.visual_context
+    assert "một người đang mặc áo khoác màu kem" in result.ledger.get(
+        result.fact_ids[0]
+    ).statement
+
+
+def test_vision_result_requires_explicit_estimate_key():
+    from pydantic import ValidationError
+
+    from app.llm.base import VisionResult
+
+    with pytest.raises(ValidationError):
+        VisionResult.model_validate({"image_usable": True, "observations": []})
 
 
 @pytest.mark.parametrize(
@@ -99,7 +133,7 @@ def test_valid_observations_become_inference_facts_with_vision_source(tmp_path):
     ],
 )
 def test_sensitive_observations_are_rejected(tmp_path, text, category):
-    fake = FakeLLMClient(vision_responses=[{"image_usable": True, "observations": [obs(text), obs("appears to show a guitar")]}])
+    fake = FakeLLMClient(vision_responses=[{"image_usable": True, "observations": [obs(text), obs("appears to show a guitar")], "estimate": None}])
     result = extract_visual_context(local_image_profile(tmp_path), build_ledger(raw()), fake, base_dir=tmp_path)
     assert "guitar" in result.visual_context
     assert text not in result.visual_context
@@ -109,7 +143,7 @@ def test_sensitive_observations_are_rejected(tmp_path, text, category):
 
 def test_low_confidence_and_unhedged_observations_rejected(tmp_path):
     fake = FakeLLMClient(
-        vision_responses=[{"image_usable": True, "observations": [obs("appears to show a cat", 0.3), obs("a sunny beach")]}]
+        vision_responses=[{"image_usable": True, "observations": [obs("appears to show a cat", 0.3), obs("a sunny beach")], "estimate": None}]
     )
     result = extract_visual_context(local_image_profile(tmp_path), build_ledger(raw()), fake, base_dir=tmp_path)
     assert result.visual_context == "NOT_AVAILABLE: không có quan sát ảnh nào qua được kiểm tra"
@@ -118,15 +152,29 @@ def test_low_confidence_and_unhedged_observations_rejected(tmp_path):
 
 
 def test_image_not_usable(tmp_path):
-    fake = FakeLLMClient(vision_responses=[{"image_usable": False, "observations": []}])
+    fake = FakeLLMClient(vision_responses=[{"image_usable": False, "observations": [], "estimate": None}])
     result = extract_visual_context(local_image_profile(tmp_path), build_ledger(raw()), fake, base_dir=tmp_path)
     assert result.visual_context == "NOT_AVAILABLE: ảnh không có nội dung mô tả được"
 
 
 def test_more_than_five_observations_is_invalid_output(tmp_path):
-    fake = FakeLLMClient(vision_responses=[{"image_usable": True, "observations": [obs(f"appears to show item {i}") for i in range(6)]}])
+    fake = FakeLLMClient(vision_responses=[{"image_usable": True, "observations": [obs(f"appears to show item {i}") for i in range(6)], "estimate": None}])
     result = extract_visual_context(local_image_profile(tmp_path), build_ledger(raw()), fake, base_dir=tmp_path)
     assert result.visual_context == "NOT_AVAILABLE: phân tích ảnh thất bại (invalid_output)"
+
+
+@pytest.mark.parametrize(
+    "text",
+    ["Ảnh có vẻ cho thấy số điện thoại 0912345678", "Ảnh có vẻ cho thấy email lan@example.com", "Ảnh có vẻ cho thấy https://example.com"],
+)
+def test_visual_text_with_contact_details_is_excluded_without_echoing_it(tmp_path, text):
+    fake = FakeLLMClient(vision_responses=[{"image_usable": True, "observations": [obs(text)], "estimate": None}])
+    result = extract_visual_context(local_image_profile(tmp_path), build_ledger(raw()), fake, base_dir=tmp_path)
+    assert result.visual_context.startswith("NOT_AVAILABLE:")
+    assert all(
+        secret not in " ".join(result.notes)
+        for secret in ("0912345678", "lan@example.com", "https://example.com")
+    )
 
 
 def test_llm_error_is_not_available(tmp_path):
@@ -148,7 +196,7 @@ def test_image_without_llm_in_deterministic_mode(tmp_path):
     ],
 )
 def test_local_image_problems(tmp_path, images, fragment):
-    fake = FakeLLMClient(vision_responses=[{"image_usable": True, "observations": []}])
+    fake = FakeLLMClient(vision_responses=[{"image_usable": True, "observations": [], "estimate": None}])
     result = extract_visual_context(raw(images=images), build_ledger(raw()), fake, base_dir=tmp_path)
     assert result.visual_context.startswith("NOT_AVAILABLE:") and fragment in result.visual_context
     assert fake.calls == []
@@ -168,7 +216,7 @@ def test_image_url_is_downloaded_once_and_described():
         requests.append(request)
         return httpx.Response(200, headers={"content-type": "image/jpeg"}, content=b"\xff\xd8\xff" + b"0" * 10)
 
-    fake = FakeLLMClient(vision_responses=[{"image_usable": True, "observations": [obs("appears to show a mountain trail")]}])
+    fake = FakeLLMClient(vision_responses=[{"image_usable": True, "observations": [obs("appears to show a mountain trail")], "estimate": None}])
     result = extract_visual_context(url_profile(), build_ledger(raw()), fake, transport=httpx.MockTransport(handler))
     assert "mountain trail" in result.visual_context
     assert len(requests) == 1 and "cookie" not in requests[0].headers
@@ -243,9 +291,10 @@ def test_estimate_thresholds(tmp_path, change, expected_categories):
     assert any("bỏ qua" in n for n in result.notes)
 
 
-def test_estimate_only_from_avatar(tmp_path):
+@pytest.mark.parametrize("kind", ["cover", "photo"])
+def test_estimate_only_from_avatar(tmp_path, kind):
     (tmp_path / "p.png").write_bytes(PNG)
-    profile = raw(images=[{"kind": "photo", "path": "p.png"}])
+    profile = raw(images=[{"kind": kind, "path": "p.png"}])
     fake = FakeLLMClient(vision_responses=[vision_reply(EST)])
     result = extract_visual_context(profile, build_ledger(profile), fake, base_dir=tmp_path)
     assert result.estimate_fact_ids == [] and result.available

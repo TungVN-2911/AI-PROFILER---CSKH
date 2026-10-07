@@ -9,7 +9,7 @@
 
 | Problem | Required capability | Mechanism | Technology |
 |---|---|---|---|
-| Get profile data without breaking rules | Read only legitimately accessible data, detect when access is denied | Pluggable data sources: provided JSON (primary), single public-meta GET (opt-in) | `pathlib`/`json`, `httpx`, stdlib `html.parser` |
+| Get profile data without breaking rules | Read only content actually exposed publicly, detect when access is denied | Pluggable sources: provided JSON, fresh unauthenticated browser visit, optional single metadata GET | `pathlib`/`json`, Selenium, `httpx`, stdlib `html.parser` |
 | Keep facts separate from guesses | Typed evidence with provenance and epistemic status | Fact Ledger (`F1..Fn`, category, source, FACT/INFERENCE/UNKNOWN) | Pydantic v2 models |
 | Decide SUCCESS vs PARTIAL honestly | Rule-based sufficiency gate | Deterministic thresholds on ledger | Plain Python |
 | Describe a public image | Understand image content | Multimodal model, constrained prompt, observation-only schema | Claude (vision) via adapter |
@@ -34,7 +34,8 @@ Input Validation (app.input)            ── invalid ────────�
  ▼                                                                          │
 Profile Data Acquisition (app.sources)                                      │
  │  ProfileSource adapters: ProvidedFileSource → FixtureStoreSource →       │
- │  LivePublicMetaSource (opt-in)  ⇒  RawProfile + AccessState              │
+ │  FacebookSeleniumSource (public only) → optional LivePublicMetaSource    │
+ │  ⇒ RawProfile + AccessState                                              │
  ▼                                                                          │
 Data Normalization (app.ledger)                                             │
  │  RawProfile ⇒ FactLedger (FACT / INFERENCE / UNKNOWN, with sources)      │
@@ -78,7 +79,8 @@ facebook-profiler-agent/  (repo root)
 │   ├── sources/
 │   │   ├── base.py             # ProfileSource protocol, AcquisitionResult
 │   │   ├── provided.py         # --profile-file and fixture store lookup
-│   │   └── live_meta.py        # opt-in single GET, og:* parsing, login-wall detection
+│   │   ├── live_meta.py        # optional single GET, og:* parsing, login-wall detection
+│   │   └── facebook_crawl.py   # experimental unauthenticated Selenium collector; not wired to CLI
 │   ├── ledger.py               # normalization → FactLedger; sufficiency gate
 │   ├── llm/
 │   │   ├── base.py             # LLMClient protocol: generate_structured(), describe_image()
@@ -106,12 +108,12 @@ facebook-profiler-agent/  (repo root)
 ```
 
 Dependency direction: `cli → pipeline → (sources, ledger, vision, intel, generation, guardrails, output) → models/schema`.
-Only `app/llm/anthropic_client.py` imports the `anthropic` SDK; only `app/sources/live_meta.py` does network I/O to Facebook.
+Only `app/llm/anthropic_client.py` imports the `anthropic` SDK; Facebook network I/O is isolated to modules under `app/sources/`.
 
 ```text
 External Service (Claude API, facebook.com)
         ↓
-Adapter (llm/anthropic_client.py, sources/live_meta.py)
+Adapter (llm/anthropic_client.py, sources/facebook_crawl.py / live_meta.py)
         ↓
 Protocol (llm/base.py LLMClient, sources/base.py ProfileSource)
         ↓
@@ -153,12 +155,13 @@ profile's public About section (self-declared), never a guess.
 AccessState   = PUBLIC | PARTIAL | PRIVATE | LOGIN_REQUIRED | NOT_FOUND | UNREACHABLE | INVALID_INPUT | NO_ACCESSIBLE_DATA
 EpistemicStatus = FACT | INFERENCE | UNKNOWN
 
+RawProfile { facebook_url, profile_type: PERSONAL_PROFILE | PUBLIC_PAGE | UNKNOWN, ... }
 AcquisitionResult { canonical_url, access_state, raw: RawProfile | None, source_name, synthetic: bool, limitations: [str] }
   # raw is only set for PUBLIC/PARTIAL; a profile file whose facebook_url != --url is rejected (SourceError)
 
 Fact {
   id: "F1",
-  category: name | bio | work | education | location | interest | post | visual_observation | pronouns | gender | birth_year | other,
+  category: name | bio | metric | work | education | location | interest | post | visual_observation | pronouns | gender | birth_year | other,
   statement: str,              # verbatim or minimally normalized text
   source: str,                 # e.g. "profile_file:bio", "og:description", "vision:avatar"
   epistemic_status: FACT | INFERENCE,   # UNKNOWN items are kept in unknown_fields, never as entries
@@ -187,7 +190,8 @@ PartialOutput { status: "PARTIAL_OR_PRIVATE", facebook_url, error_note }
 
 ```text
 EvidenceReport {
-  facebook_url, output_status, access_state, sources_used, synthetic_data: bool, collected_at,
+  facebook_url, output_status, access_state, profile_type, requires_human_review: true,
+  sources_used, synthetic_data: bool, collected_at,
   generation_mode: llm | deterministic | none, model_id | null, fact_ledger: [Fact], unknown_fields,
   grounding: { core_empathy_angle: [fact_ids], apparent_lifestyle: [fact_ids],
                messages: [{index, kind: grounded|neutral, fact_ids}], evening_hook: [fact_ids] },
@@ -195,6 +199,12 @@ EvidenceReport {
   technical_limitations: [str]
 }
 ```
+
+Email, phone numbers, and URLs are excluded from ledger facts. Live bio metrics are recorded as `metric` and
+cannot be used as message grounding or as lifestyle evidence. Explicitly identified public Pages are reported
+as `PUBLIC_PAGE` and stop before vision or message generation. A message sequence may cite visual observations
+in at most one message; image-based demographic estimates never determine forms of address. `SUCCESS` indicates
+a validated draft only; human review remains required before any sending.
 
 ---
 
@@ -286,7 +296,7 @@ by an authenticated browser session.
 python main.py --url "https://www.facebook.com/<username>"
                [--profile-file path/to/profile.json]
                [--output output.json] [--evidence evidence.json]
-               [--mode auto|llm|deterministic] [--live] [--messages 5..10] [--verbose]
+               [--mode auto|llm|deterministic] [--live|--no-live] [--messages 5..10] [--verbose]
 ```
 
 ### 7.2 Configuration (env / `.env`)
@@ -298,7 +308,8 @@ python main.py --url "https://www.facebook.com/<username>"
 | `LLM_TIMEOUT_SECONDS` | `60` | Per-call timeout. |
 | `LLM_MAX_RETRIES` | `2` | Validation-feedback retries. |
 | `OUTPUT_LANGUAGE` | `vi` | Message language. |
-| `LIVE_FETCH_ENABLED` | `false` | Same as `--live`. |
+| `PUBLIC_BROWSER_ENABLED` | `true` | One fresh, unauthenticated Selenium visit for publicly rendered profile content. |
+| `LIVE_FETCH_ENABLED` | `false` | Optional single HTTP metadata request. |
 | `PROFILE_STORE_DIR` | `fixtures/profiles` | Provided-data lookup directory. |
 | `MIN_GROUNDING_FACTS` | `2` | Sufficiency gate threshold. |
 | `DEFAULT_MESSAGE_COUNT` | `10` | Target message count (5–10). |

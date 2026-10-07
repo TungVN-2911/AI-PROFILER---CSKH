@@ -86,12 +86,17 @@ def test_nested_schemas_are_inlined_without_refs(model):
 
 
 def test_image_request_uses_inline_bytes():
-    sdk = stub(reply(json.dumps({"image_usable": True, "observations": []})))
+    sdk = stub(reply(json.dumps({"image_usable": True, "observations": [], "estimate": None})))
     result = adapter(sdk).describe_image(image_bytes=b"abc", media_type="image/jpeg", instructions="RULES")
     assert result.image_usable is True
     part = sdk.models.kwargs["contents"][0]
     assert part.inline_data.mime_type == "image/jpeg" and part.inline_data.data == b"abc"
     assert sdk.models.kwargs["config"].system_instruction == "RULES"
+
+
+def test_vision_response_schema_requires_demographic_estimate_field():
+    schema = inline_schema(TypeAdapter(VisionResult).json_schema())
+    assert "estimate" in schema["required"]
 
 
 def test_unsupported_image_type_makes_no_call():

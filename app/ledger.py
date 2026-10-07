@@ -10,6 +10,7 @@ import re
 from dataclasses import dataclass
 
 from app.config import Settings
+from app.lexicons import EMAIL_PATTERN, PHONE_PATTERN, URL_PATTERN
 from app.models import READABLE_STATES, AccessState, EpistemicStatus, Fact, FactCategory, FactLedger, RawProfile
 from app.sources.base import NO_DATA_LIMITATION
 from app.sources.live_meta import LOGIN_LIMITATION
@@ -31,6 +32,33 @@ TRACKED_FIELDS = (
 )
 
 _BIO_FACT_SEPARATOR = re.compile(r"\s*(?:[·•]|\r?\n+)\s*|\.\s+(?=[A-ZÀ-Ỵ0-9])")
+_PROFILE_METRIC = re.compile(
+    r"\b(?:người theo dõi|followers|người đang nói về điều này|people talking about this)\b",
+    re.IGNORECASE,
+)
+_FACEBOOK_BOILERPLATE = (
+    re.compile(r"^join facebook to connect with .+ and others you may know\.?$", re.IGNORECASE),
+    re.compile(
+        r"^facebook gives people the power to share and makes the world more open and connected\.?$",
+        re.IGNORECASE,
+    ),
+    re.compile(r"^tham gia facebook để kết nối với .+$", re.IGNORECASE),
+    re.compile(r"^facebook giúp mọi người chia sẻ và kết nối với nhau\.?$", re.IGNORECASE),
+)
+
+
+def _is_platform_boilerplate(statement: str, display_name: str | None) -> bool:
+    normalized = " ".join(statement.split()).strip()
+    if any(pattern.fullmatch(normalized) for pattern in _FACEBOOK_BOILERPLATE):
+        return True
+    return bool(
+        display_name
+        and re.fullmatch(
+            rf"{re.escape(display_name)}\s+is on Facebook\.?",
+            normalized,
+            re.IGNORECASE,
+        )
+    )
 
 
 class _LedgerBuilder:
@@ -41,6 +69,10 @@ class _LedgerBuilder:
         self._seen: set[tuple[str, str]] = set()
 
     def add(self, category: FactCategory, statement: str, field: str) -> None:
+        if EMAIL_PATTERN.search(statement) or PHONE_PATTERN.search(statement) or URL_PATTERN.search(statement):
+            if "contact_details_redacted" not in self.unknown:
+                self.unknown.append("contact_details_redacted")
+            return
         key = (category, statement.casefold())
         if key in self._seen:
             return
@@ -75,18 +107,30 @@ def build_ledger(raw: RawProfile | None) -> FactLedger:
     b = _LedgerBuilder(raw.collection_method or "provided")
     info = raw.public_info
 
+    def bio_category(statement: str) -> FactCategory:
+        return "metric" if _PROFILE_METRIC.search(statement) else "bio"
+
     b.add_value("name", raw.display_name, "display_name")
     if raw.bio is None:
         b.add_value("bio", None, "bio")
-    elif raw.collection_method == "live_meta":
+    elif raw.collection_method in {"live_meta", "public_browser"}:
         bio_facts = [part.strip() for part in _BIO_FACT_SEPARATOR.split(raw.bio) if part.strip()]
-        if len(bio_facts) == 1:
-            b.add("bio", bio_facts[0], "bio")
-        else:
-            for i, statement in enumerate(bio_facts):
-                b.add("bio", statement, f"bio[{i}]")
+        if raw.display_name:
+            bio_facts = [part for part in bio_facts if part.casefold() != raw.display_name.casefold()]
+        if raw.collection_method == "public_browser":
+            bio_facts = [
+                part for part in bio_facts
+                if not _is_platform_boilerplate(part, raw.display_name)
+            ]
+        if not bio_facts:
+            b.unknown.append("bio")
+        for i, statement in enumerate(bio_facts):
+            b.add(bio_category(statement), statement, f"bio[{i}]")
     else:
-        b.add_value("bio", raw.bio, "bio")
+        if raw.display_name and raw.bio.casefold() == raw.display_name.casefold():
+            b.unknown.append("bio")
+        else:
+            b.add(bio_category(raw.bio), raw.bio, "bio")
     b.add_list("work", info.work, "public_info.work")
     b.add_list("education", info.education, "public_info.education")
     b.add_list("interest", info.interests, "public_info.interests")
@@ -97,9 +141,15 @@ def build_ledger(raw: RawProfile | None) -> FactLedger:
     b.add_value("birth_year", info.birth_year, "public_info.birth_year")
     # public_info.links are deliberately not ledgered: URLs must never appear in rapport messages.
 
-    if not raw.public_posts:
+    usable_posts = [
+        (i, post)
+        for i, post in enumerate(raw.public_posts)
+        if raw.collection_method != "public_browser"
+        or not _is_platform_boilerplate(post.text, raw.display_name)
+    ]
+    if not usable_posts:
         b.unknown.append("public_posts")
-    for i, post in enumerate(raw.public_posts):
+    for i, post in usable_posts:
         when = f"@{post.date.isoformat()}" if post.date else ""
         b.add("post", post.text, f"public_posts[{i}]{when}")
 

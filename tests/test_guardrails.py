@@ -96,6 +96,21 @@ def test_ai_vision_observation_may_ground_a_message_but_estimates_may_not():
     assert "NON_FACT_CITATION" in codes(bad)
 
 
+def test_only_one_message_may_focus_on_visual_observations():
+    ledger, first = append_fact(
+        LEDGER, "visual_observation", "Ảnh có vẻ cho thấy xe đạp", "vision:avatar",
+        EpistemicStatus.INFERENCE, 0.9,
+    )
+    ledger, second = append_fact(
+        ledger, "visual_observation", "Ảnh có vẻ cho thấy mũ bảo hiểm", "vision:avatar",
+        EpistemicStatus.INFERENCE, 0.9,
+    )
+    def mutate(data):
+        data["messages"][1].update(text=first.statement, fact_ids=[first.id])
+        data["messages"][2].update(text=second.statement, fact_ids=[second.id])
+    assert "REPEATED_IMAGE_FOCUS" in codes(validate_draft(draft(mutate), ledger))
+
+
 def test_demographic_citation_rejected():
     profile = RawProfile.model_validate({**RICH.model_dump(mode="json"), "public_info": {**RICH.public_info.model_dump(), "birth_year": 1995}})
     ledger = build_ledger(profile)
@@ -277,19 +292,37 @@ def _fact(category, statement, source="fixture:x"):
     return Fact(id="F90", category=category, statement=statement, source=source)
 
 
-def test_family_topic_allowed_when_cited_fact_is_about_family():
+def test_family_topic_requires_the_specific_relationship_term_to_be_cited():
     family_post = _fact("post", "Cuối tuần cả nhà cùng nấu cơm, các bé phụ rửa rau")
-    assert check_text("Bữa cơm tối gia đình mình chắc ấm áp lắm, các bé ngoan quá!", "hook", [family_post]) == []
+    assert "SENSITIVE_TERM" in codes(
+        check_text("Bữa cơm tối gia đình mình nghe thật ấm áp.", "hook", [family_post])
+    )
+    assert check_text("Cả nhà cùng nấu cơm, nghe thật gần gũi.", "hook", [family_post]) == []
     assert "SENSITIVE_TERM" in codes(check_text("Các bé hôm nay đi học về có vui không chị?", "hook"))
     assert "SENSITIVE_TERM" in codes(check_text("Bữa cơm tối gia đình mình có món gì ngon?", "hook", [_fact("interest", "nấu ăn")]))
 
 
-def test_work_evening_wish_allowed_only_with_a_work_fact():
+def test_evening_hook_does_not_assume_current_presence_with_family():
+    family_post = _fact("post", "Mình thích những buổi sum họp gia đình vào dịp Tết")
+    text = "Chúc bạn buổi tối vui vẻ bên gia đình nhé!"
+
+    violations = check_text(text, "evening_hook", [family_post])
+
+    assert "PRESUMPTION" in codes(violations)
+
+
+def test_evening_hook_does_not_assume_workday_or_current_activity():
     work = _fact("work", "Kế toán tại Công ty Hoa Mai")
-    assert check_text("Chúc chị có phút thư giãn thật trọn vẹn sau giờ làm việc nhé!", "hook", [work]) == []
+    assert "PRESUMPTION" in codes(
+        check_text("Chúc chị có phút thư giãn thật trọn vẹn sau giờ làm việc nhé!", "hook", [work])
+    )
     assert "PRESUMPTION" in codes(check_text("Chúc chị có phút thư giãn thật trọn vẹn sau giờ làm việc nhé!", "hook"))
-    # Mood presumptions stay forbidden even with a work fact.
     assert "PRESUMPTION" in codes(check_text("Chắc chị mệt mỏi lắm sau giờ làm việc.", "hook", [work]))
+
+
+@pytest.mark.parametrize("text", ["Ngày gia đình Quỳnh Chi lần thứ n.", "Dữ liệu null chưa rõ.", "Lần thứ <n>"])
+def test_incomplete_placeholder_noise_is_rejected(text):
+    assert "LOW_QUALITY_PLACEHOLDER" in codes(check_text(text, "messages[0]"))
 
 
 def test_post_date_from_source_is_grounded():

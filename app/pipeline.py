@@ -41,6 +41,7 @@ from app.sources.base import (
     SourceError,
     acquire_from_chain,
 )
+from app.sources.facebook_crawl import FacebookSeleniumSource
 from app.sources.live_meta import SCOPE_NOTE, LivePublicMetaSource
 from app.sources.provided import FixtureStoreSource, ProvidedFileSource
 from app.vision import extract_visual_context
@@ -60,6 +61,7 @@ class PipelineOptions:
     profile_file: Path | None = None
     mode: GenerationMode = "auto"
     live: bool | None = None  # None → settings.live_fetch_enabled
+    public_browser: bool | None = None  # None → settings.public_browser_enabled
     reference_year: int | None = None
 
 
@@ -141,24 +143,29 @@ def _run(
                 technical_limitations=[note],
             )
     else:
-        acq = None
+        try:
+            acq = store.acquire(url)
+        except SourceError as exc:
+            note = f"INVALID_INPUT: {exc}"
+            return _partial(url.url, note, EXIT_INPUT, access_state=AccessState.INVALID_INPUT, technical_limitations=[note])
 
     live = settings.live_fetch_enabled if options.live is None else options.live
+    public_browser = settings.public_browser_enabled if options.public_browser is None else options.public_browser
+
+    if acq is None and public_browser:
+        try:
+            acq = FacebookSeleniumSource(enabled=True).acquire(url)
+        except SourceError:
+            acq = None
 
     if acq is None and live:
         try:
-            acq = LivePublicMetaSource(
-                enabled=True, timeout_seconds=15.0, transport=http_transport
-            ).acquire(url)
+            acq = LivePublicMetaSource(enabled=True, timeout_seconds=15.0, transport=http_transport).acquire(url)
         except SourceError:
             acq = None
 
     if acq is None:
-        try:
-            acq = acquire_from_chain([store], url)
-        except SourceError as exc:
-            note = f"INVALID_INPUT: {exc}"
-            return _partial(url.url, note, EXIT_INPUT, access_state=AccessState.INVALID_INPUT, technical_limitations=[note])
+        acq = acquire_from_chain([], url)
 
     limitations = [*acq.limitations, *(f"profile store: {e}" for e in store.load_errors)]
     log.info("acquired via %s: %s", acq.source_name, acq.access_state.value)
@@ -166,6 +173,26 @@ def _run(
 
     # 4. Normalization + visual context (readable profiles only)
     ledger = build_ledger(acq.raw)
+    profile_type = acq.raw.profile_type if acq.raw else "UNKNOWN"
+    if profile_type == "PUBLIC_PAGE":
+        note = (
+            "UNSUPPORTED_PROFILE_TYPE: Nguồn dữ liệu được nhận diện là Trang/Page công khai, "
+            "không phải hồ sơ cá nhân; không tạo kịch bản nhắn riêng."
+        )
+        return _partial(
+            url.url,
+            note,
+            EXIT_OK,
+            access_state=acq.access_state,
+            profile_type=profile_type,
+            sources_used=[acq.source_name],
+            synthetic_data=acq.synthetic,
+            collected_at=acq.raw.collected_at.isoformat() if acq.raw and acq.raw.collected_at else None,
+            fact_ledger=ledger.facts,
+            unknown_fields=ledger.unknown_fields,
+            technical_limitations=[*limitations, note],
+        )
+
     visual_context = "NOT_AVAILABLE: không truy cập được nội dung trang cá nhân"
     visual_available = False
     if acq.access_state in READABLE_STATES:
@@ -179,6 +206,7 @@ def _run(
 
     common = dict(
         access_state=acq.access_state,
+        profile_type=profile_type,
         sources_used=[acq.source_name],
         synthetic_data=acq.synthetic,
         collected_at=acq.raw.collected_at.isoformat()

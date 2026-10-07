@@ -10,7 +10,7 @@ from typing import Annotated, Any, Literal, Union
 
 from pydantic import BaseModel, ConfigDict, Field, StringConstraints, TypeAdapter
 
-from app.models import AccessState, Fact
+from app.models import AccessState, Fact, ProfileType
 
 NonEmptyStr = Annotated[str, StringConstraints(strip_whitespace=True, min_length=1)]
 
@@ -106,6 +106,8 @@ class EvidenceReport(_Strict):
     facebook_url: str
     output_status: Literal["SUCCESS", "PARTIAL_OR_PRIVATE"]
     access_state: AccessState | None = None
+    profile_type: ProfileType = "UNKNOWN"
+    requires_human_review: Literal[True] = True
     sources_used: list[str] = Field(default_factory=list)
     synthetic_data: bool = False
     collected_at: str | None = None

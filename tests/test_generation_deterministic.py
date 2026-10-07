@@ -28,6 +28,10 @@ def test_rich_fixture_gives_ten_valid_messages():
     # Every grounded message cites exactly one fact whose text it contains.
     # Message 0 is the avatar greeting (name + image description); every other grounded message cites one fact.
     assert draft.messages[0].kind == "grounded" and "ảnh đại diện" in draft.messages[0].text
+    assert sum(
+        any(ledger.get(fid).category == "visual_observation" for fid in message.fact_ids)
+        for message in draft.messages
+    ) <= 1
     for m in grounded[1:]:
         (fid,) = m.fact_ids
         assert ledger.get(fid).statement[:40] in m.text
@@ -74,6 +78,19 @@ def test_facts_with_prices_or_links_are_skipped():
     assert validate_draft(draft, ledger) == []
     joined = " ".join(m.text for m in draft.messages) + draft.evening_hook.text + draft.core_empathy_angle.text
     assert "199k" not in joined and "https" not in joined and "0912" not in joined
+
+
+def test_live_metadata_metrics_are_never_used_as_rapport_topics():
+    profile = raw(
+        collection_method="live_meta",
+        bio="30.000 người theo dõi · Yêu mèo · Sống tại Huế",
+        images=[{"kind": "avatar", "alt_text": "Ảnh đại diện có vẻ cho thấy một người cầm ô"}],
+    )
+    ledger = build_ledger(profile)
+    metric = next(f for f in ledger.facts if f.category == "metric")
+    draft = generate_deterministic(ledger, 10)
+    assert metric.id not in {fid for message in draft.messages for fid in message.fact_ids}
+    assert metric.id not in draft.evening_hook.fact_ids
 
 
 def test_customer_quoting_own_tiredness_is_not_presumption():
@@ -233,7 +250,7 @@ def test_deterministic_never_quotes_brand_or_product_facts():
 # --- Emotional quality --------------------------------------------------------------------------
 
 
-def test_work_hook_uses_relaxing_evening_wish():
+def test_work_hook_revisits_fact_without_assuming_current_workday():
     profile = raw(
         public_info={"work": ["Điều dưỡng tại Bệnh viện Hòa An"], "current_city": "Huế"},
         images=[{"kind": "avatar", "alt_text": "Ảnh đại diện có vẻ cho thấy một người mỉm cười"}],
@@ -243,7 +260,21 @@ def test_work_hook_uses_relaxing_evening_wish():
     assert validate_draft(draft, ledger) == []
     work = next(f for f in ledger.facts if f.category == "work")
     assert draft.evening_hook.fact_ids == [work.id]
-    assert "sau giờ làm việc" in draft.evening_hook.text and draft.evening_hook.text.startswith("Buổi tối an lành")
+    assert "Điều dưỡng tại Bệnh viện Hòa An" in draft.evening_hook.text
+    assert "sau giờ làm việc" not in draft.evening_hook.text
+    assert draft.evening_hook.text.startswith("Buổi tối an lành")
+    assert validate_draft(draft, ledger) == []
+
+
+def test_core_angle_does_not_invent_joy_or_effort():
+    ledger = build_ledger(
+        raw(public_info={"current_city": "Huế"}, bio="Sống tại Huế")
+    )
+    draft = generate_deterministic(ledger, 5)
+
+    assert "niềm vui" not in draft.core_empathy_angle.text
+    assert "nỗ lực" not in draft.core_empathy_angle.text
+    assert "Sống tại Huế" in draft.core_empathy_angle.text
 
 
 def test_every_fixture_draft_is_warm_and_valid():

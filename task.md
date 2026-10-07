@@ -15,6 +15,10 @@
 - Phase 3 — Submission readiness (re-review of the brief, 2026-10-06): TASK-030…TASK-033. No requirement change: the
   tasks close gaps against FR-016/FR-020, FR-019, NFR-003 and the brief's architecture criterion. Production features
   (Messenger sending, multi-turn, scheduler, hand-over) stay out of scope and are documented as a roadmap only.
+- URL-first public collection update (2026-10-07): matching profile files/store remain first; otherwise the CLI uses
+  one fresh unauthenticated Selenium visit for publicly rendered content. Login/checkpoint/CAPTCHA, proxy rotation,
+  stored browser sessions, repeated scrolling and retry-based access workarounds are excluded. Live behavior is tested
+  with mocked Selenium; it has not been re-run on real profiles after this change.
 
 ## Status Summary
 

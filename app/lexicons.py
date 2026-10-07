@@ -113,6 +113,8 @@ PRESUMPTION_PATTERNS: tuple[re.Pattern[str], ...] = tuple(
         rf"tối nay {_PRONOUN} (?:đang|sẽ|có|định)",
         rf"giờ này {_PRONOUN}",
         r"sau giờ làm", r"sau một ngày", r"tan làm", r"đi làm về", r"vừa về nhà", r"về đến nhà",
+        r"bên (?:gia đình|người thân|các bé|con cái)", r"(?:quây quần|sum họp) bên",
+        r"cùng gia đình (?:thư giãn|nghỉ ngơi|ăn tối)", r"gia đình (?:đang|sẽ) (?:ở|bên)",
         r"mệt mỏi", r"căng thẳng", r"áp lực",
         r"\byou must be\b", r"\byou(?:'re| are) probably\b", r"\bafter (?:a long )?(?:day|work)\b",
         r"\blong day\b", r"\byou just got home\b", r"\btonight you\b",
