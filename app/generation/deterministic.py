@@ -62,16 +62,43 @@ INTEREST_TEMPLATES = (
     "{You} bắt đầu đến với {s} từ khi nào vậy{q}? {Me} rất tò mò về hành trình ấy.",
     "Dành thời gian cho {s} là một cách chăm sóc tâm hồn thật đẹp. {You} có bí quyết nhỏ nào muốn chia sẻ không{q}?",
 )
+# Each category offers a few phrasings; the per-category variant counter cycles through them so a customer
+# with several facts of one kind (two schools, two jobs) never gets two identically worded messages.
 CATEGORY_TEMPLATES = {
-    "bio": "{Me} rất thích cách {you} giới thiệu bản thân: “{s}”. Đọc là thấy ngay nét riêng thật đáng mến của {you}.",
-    "work": "{Me} thấy {you} đang gắn bó với công việc “{s}”. Công việc nào cũng có những vất vả riêng, {me} thật sự nể {you}. "
-    "Điều gì ở công việc này khiến {you} thấy vui nhất{q}?",
-    "education": "{Me} thấy {you} từng học tại “{s}”. Quãng thời gian ấy hẳn có nhiều kỷ niệm đẹp, {you} nhớ nhất điều gì{q}?",
-    "hometown": "Quê {you} ở {s}, nghe thôi đã thấy thân thương. Ở {s} có món ăn hay góc nhỏ nào {you} nhớ nhất không{q}?",
-    "location": "{You} đang sống ở {s}, một nơi có nhiều nét riêng thật đáng yêu. Ở {s}, {you} hay ghé góc nào nhất{q}?",
-    "visual_observation": "Tấm ảnh đại diện của {you} nhìn thật dễ mến, {me} xem mà thấy nhẹ nhõm hẳn. "
-    "Bức ảnh ấy có câu chuyện gì đặc biệt không{q}?",
-    "other": "{Me} có để ý {you} chia sẻ “{s}”. {Me} rất muốn nghe thêm về điều này{q}.",
+    "bio": (
+        "{Me} rất thích cách {you} giới thiệu bản thân: “{s}”. Đọc là thấy ngay nét riêng thật đáng mến của {you}.",
+        "Dòng giới thiệu “{s}” của {you} thật có duyên. {Me} đọc mà thấy quý cái nét riêng ấy.",
+        "{Me} ấn tượng với cách {you} viết về mình: “{s}”. Nghe thật gần gũi và chân thành.",
+    ),
+    "work": (
+        "{Me} thấy {you} đang gắn bó với công việc “{s}”. Công việc nào cũng có những vất vả riêng, {me} thật sự nể {you}. "
+        "Điều gì ở công việc này khiến {you} thấy vui nhất{q}?",
+        "{Me} có thấy {you} làm “{s}”. {Me} luôn trân trọng những người gắn bó với nghề của mình, {you} kể {me} nghe cơ duyên "
+        "đến với công việc này nhé{q}?",
+        "Nghề “{s}” của {you} thật ý nghĩa. {Me} rất muốn biết điều gì khiến {you} chọn gắn bó với công việc này{q}?",
+    ),
+    "education": (
+        "{Me} thấy {you} từng học tại “{s}”. Quãng thời gian ấy hẳn có nhiều kỷ niệm đẹp, {you} nhớ nhất điều gì{q}?",
+        "{Me} thấy {you} có thời gian học ở “{s}”. Mỗi ngôi trường đều mang một màu kỷ niệm riêng, {you} nhớ nhất điều gì ở nơi đó{q}?",
+        "“{s}” là nơi {you} từng theo học. {Me} rất tò mò, kỷ niệm nào ở đó khiến {you} mỉm cười mỗi khi nhớ lại{q}?",
+    ),
+    "hometown": (
+        "Quê {you} ở {s}, nghe thôi đã thấy thân thương. Ở {s} có món ăn hay góc nhỏ nào {you} nhớ nhất không{q}?",
+    ),
+    "location": (
+        "{You} đang sống ở {s}, một nơi có nhiều nét riêng thật đáng yêu. Ở {s}, {you} hay ghé góc nào nhất{q}?",
+        "{Me} thấy {you} đang ở {s}. {Me} nghe nói nơi này có nhiều điều thú vị, {you} thích nhất điều gì ở {s} vậy{q}?",
+        "Sống ở {s} hẳn có nhiều điều để khám phá. {You} có nơi quen thuộc nào ở {s} muốn kể cho {me} nghe không{q}?",
+    ),
+    "visual_observation": (
+        "Tấm ảnh đại diện của {you} nhìn thật dễ mến, {me} xem mà thấy nhẹ nhõm hẳn. "
+        "Bức ảnh ấy có câu chuyện gì đặc biệt không{q}?",
+    ),
+    "other": (
+        "{Me} có để ý {you} chia sẻ “{s}”. {Me} rất muốn nghe thêm về điều này{q}.",
+        "{You} có nhắc tới “{s}”. {Me} thấy điều này thật thú vị, {you} kể {me} nghe thêm nhé{q}?",
+        "{Me} đọc được chia sẻ “{s}” của {you}. {Me} rất muốn hiểu thêm về điều đó{q}.",
+    ),
 }
 HOOK_TOPICS = {
     "interest": "niềm yêu thích {s} của {you}",
@@ -83,16 +110,20 @@ HOOK_TOPICS = {
 HOOK = "Buổi tối an lành nhé {you}! {Me} chợt nhớ tới {topic}. Nếu {you} muốn, {you} kể {me} nghe thêm về điều đó nhé."
 
 
+def _pick(templates: tuple[str, ...], variant: int) -> str:
+    return templates[variant % len(templates)]
+
+
 def _render_message(fact: Fact, variant: int, addressing: Addressing) -> str:
     s = _clip(fact.statement)
     if fact.category == "post":
-        template = POST_TEMPLATES[variant % len(POST_TEMPLATES)]
+        template = _pick(POST_TEMPLATES, variant)
     elif fact.category == "interest":
-        template = INTEREST_TEMPLATES[variant % len(INTEREST_TEMPLATES)]
+        template = _pick(INTEREST_TEMPLATES, variant)
     elif fact.category == "location" and fact.source.endswith("hometown"):
-        template = CATEGORY_TEMPLATES["hometown"]
+        template = CATEGORY_TEMPLATES["hometown"][0]
     else:
-        template = CATEGORY_TEMPLATES.get(fact.category, CATEGORY_TEMPLATES["other"])
+        template = _pick(CATEGORY_TEMPLATES.get(fact.category, CATEGORY_TEMPLATES["other"]), variant)
     return _fill(template, addressing, s)
 
 

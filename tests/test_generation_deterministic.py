@@ -147,6 +147,29 @@ def test_template_variety_within_category():
     assert len(set(openings)) == len(openings)
 
 
+def test_multiple_facts_of_one_category_use_different_phrasings():
+    # Two schools and two jobs would collide if each category had a single template.
+    profile = raw(
+        public_info={
+            "education": ["Trường THPT Lê Hồng Phong", "Đại học Bách Khoa"],
+            "work": ["Kỹ sư tại Công ty A", "Giảng viên thỉnh giảng tại Trung tâm B"],
+            "current_city": "Hà Nội",
+        },
+    )
+    ledger = build_ledger(profile)
+    draft = generate_deterministic(ledger, 10)
+    assert validate_draft(draft, ledger) == []
+    by_category: dict[str, list[str]] = {}
+    for m in draft.messages:
+        if m.kind == "grounded":
+            by_category.setdefault(ledger.get(m.fact_ids[-1]).category, []).append(m.text[:20])
+    # Both education facts are quoted (neither is reserved for the hook, which takes a work fact first).
+    assert len(by_category["education"]) == 2
+    # Any category used more than once must vary its opening phrase.
+    for openings in by_category.values():
+        assert len(set(openings)) == len(openings)
+
+
 def test_raises_when_too_few_facts_are_safe_to_quote():
     profile = raw(
         bio="Order hàng giá 199k",
