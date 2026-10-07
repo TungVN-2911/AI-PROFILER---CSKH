@@ -1,7 +1,7 @@
 # Facebook Profiler Agent — TES-3808
 
 Agent dòng lệnh (CLI) hỗ trợ chăm sóc khách hàng (CSKH). Nhận URL Facebook hoặc dữ liệu profile đã trích xuất hợp lệ,
-cố gắng đọc nội dung mà Facebook hiển thị công khai không đăng nhập, rồi sẽ:
+cố gắng lấy dữ liệu công khai từ Facebook (chi tiết ở [mục 10](#10-tiếp-cận-dữ-liệu-facebook-và-lộ-trình)), rồi sẽ:
 
 1. dựng **hồ sơ khách hàng có căn cứ**: mỗi thông tin là `FACT` (kèm nguồn), `INFERENCE` (suy luận, có gắn nhãn)
    hoặc `UNKNOWN` (không biết);
@@ -16,12 +16,11 @@ pip install -r requirements.txt
 python main.py --url "https://www.facebook.com/fixture.minh.anh"
 ```
 
-> **Đọc trước — giới hạn kỹ thuật.** Với URL chưa có trong profile store, CLI mặc định thử mở trang bằng trình duyệt
-> mới, không đăng nhập, để lấy phần Facebook thực sự hiển thị công khai. Agent không dùng mật khẩu/cookie, không vượt
-> CAPTCHA/checkpoint/quyền riêng tư, không xoay proxy/IP và không thử lại để né chặn. Facebook có thể vẫn chỉ trả login
-> wall; khi đó cần profile JSON được cung cấp hợp lệ. Repo chỉ chứa persona **giả lập**; dữ liệu thật lưu dưới `runs/`
-> (git-ignored). Các cách đã cân nhắc và giới hạn: xem
-> [mục 10](#10-tiếp-cận-dữ-liệu-facebook-và-lộ-trình).
+> **Đọc trước.** Khi `--url` không khớp dữ liệu có sẵn, agent thử lấy dữ liệu trực tiếp từ Facebook; cơ chế, cấu hình
+> và giới hạn được mô tả ở [mục 10](#10-tiếp-cận-dữ-liệu-facebook-và-lộ-trình) *(phần thu thập dữ liệu do nhóm tự điền)*.
+> Nếu Facebook không trả đủ dữ liệu công khai, dùng `--profile-file` với dữ liệu được cung cấp hợp lệ (có sự đồng ý),
+> hoặc chấp nhận kết quả `PARTIAL_OR_PRIVATE`. Repo chỉ chứa persona **giả lập**; dữ liệu thật lưu dưới `runs/`
+> (git-ignored).
 
 ---
 
@@ -83,8 +82,8 @@ thành `.env` rồi chỉnh sửa.
 | `LLM_MAX_RETRIES` | `2` | Số lần thử lại (kèm phản hồi lỗi) trước khi chuyển sang template. |
 | `OUTPUT_LANGUAGE` | `vi` | Ngôn ngữ của tin nhắn. |
 | `DEFAULT_MESSAGE_COUNT` | `10` | Số tin nhắn làm quen muốn sinh (5–10). |
-| `LIVE_FETCH_ENABLED` | `false` | Cho phép nguồn HTTP chỉ đọc metadata khi đã tắt public browser (`PUBLIC_BROWSER_ENABLED=false`). |
-| `PUBLIC_BROWSER_ENABLED` | `true` | Thử mở URL bằng Selenium trong phiên trình duyệt mới, không đăng nhập, để đọc nội dung công khai đang hiển thị. |
+| `LIVE_FETCH_ENABLED` | `false` | Liên quan việc thu thập dữ liệu trực tiếp từ Facebook — xem mục 10 (phần nhóm tự điền). |
+| `PUBLIC_BROWSER_ENABLED` | `true` | Liên quan việc thu thập dữ liệu trực tiếp từ Facebook — xem mục 10 (phần nhóm tự điền). |
 | `PROFILE_STORE_DIR` | `fixtures/profiles` | Thư mục chứa các file dữ liệu trang cá nhân, tra cứu theo URL. |
 | `MIN_GROUNDING_FACTS` | `2` | Số thông tin thật tối thiểu (ngoài tên) để được `SUCCESS`. |
 
@@ -102,15 +101,13 @@ python main.py --url URL [--profile-file FILE] [--output output.json] [--evidenc
 | `--url` | URL trang Facebook cá nhân. Chấp nhận `facebook.com/<username>`, các host `m.` / `mbasic.` / `web.`, `profile.php?id=<số>`, `/people/<tên>/<id>`. Tham số theo dõi (tracking) được loại bỏ. |
 | `--profile-file` | File JSON chứa dữ liệu trang cá nhân lấy được hợp lệ (định dạng: `fixtures/README.md`). `facebook_url` trong file phải khớp với `--url`; khi truyền tùy chọn này, dữ liệu file được ưu tiên và không gọi nguồn live. |
 | `--mode` | `auto` (mặc định): dùng LLM nếu có key, không thì dùng template. `llm`: bắt buộc có key. `deterministic`: chỉ dùng template, không gọi LLM. |
-| `--live` | Bật thu thập công khai không đăng nhập (đã bật mặc định qua `PUBLIC_BROWSER_ENABLED`). `--no-live` tắt mọi request Facebook. Nếu gặp login/checkpoint/CAPTCHA, collector dừng và báo giới hạn. |
+| `--live` / `--no-live` | Bật/tắt việc thu thập dữ liệu trực tiếp từ Facebook (xem mục 10). `--no-live` tắt mọi request tới Facebook. |
 | `--messages` | Số tin nhắn làm quen muốn sinh, 5–10. |
 | `--verbose` | In log từng bước ra **stderr**. stdout luôn chỉ chứa JSON. |
 
-Khi không tìm thấy dữ liệu trong file hoặc profile store, `python main.py --url ...` mặc định thử mở URL một lần
-bằng Selenium ở phiên trình duyệt mới để đọc tên, bio, bài đăng/ảnh công khai đang hiển thị. Collector không đăng
-nhập, không dùng cookie hay profile trình duyệt đã lưu, không xoay proxy/IP và không thử lại khi bị chặn. Đây là
-best-effort: Facebook có thể chỉ trả trang đăng nhập hoặc không cung cấp đủ dữ liệu; khi đó kết quả vẫn là
-`PARTIAL_OR_PRIVATE`. Chrome cần được cài đặt; nếu không muốn tạo request mạng, dùng `--no-live`.
+Khi không tìm thấy dữ liệu trong file hoặc profile store, agent thử lấy dữ liệu trực tiếp từ Facebook theo cấu hình
+mô tả ở mục 10 (phần nhóm tự điền). Đây là best-effort: Facebook có thể chỉ trả trang đăng nhập hoặc không cung cấp
+đủ dữ liệu; khi đó kết quả là `PARTIAL_OR_PRIVATE`. Không muốn tạo request mạng thì dùng `--no-live`.
 Nếu không xác định được ảnh đại diện nhưng tìm được ảnh bìa có nhãn rõ ràng, ảnh bìa được dùng để mô tả ngữ cảnh
 hình ảnh; ước lượng tuổi/giới tính vẫn chỉ dựa trên ảnh đại diện. Ảnh xem trước `og:image` không được coi mặc định là
 ảnh đại diện hay ảnh bìa.
@@ -241,6 +238,11 @@ hình đọc. Khi có API key và ảnh đại diện, agent thêm một ước 
 `Nữ (tự khai báo trên trang cá nhân [F8])` và `29–30 tuổi (tính từ năm sinh tự khai báo 1996 [F9], tại năm 2026)`.
 Dữ liệu tự khai báo luôn được ưu tiên, và agent không bao giờ đoán nhân khẩu học từ tên.
 
+Khi mô hình thực sự đọc một ảnh (có file hoặc URL ảnh), `visual_context` ngoài phần mô tả còn kèm một câu
+**"Ấn tượng tổng thể (AI, chưa kiểm chứng)"** — nhận xét ngắn về không khí/năng lượng/bối cảnh bức ảnh truyền tải.
+Câu này được sàng lọc như mọi mô tả ảnh (loại nếu chạm thuộc tính nhạy cảm hoặc thông tin liên hệ) và không bao giờ
+được đưa vào danh sách thông tin, nên không dùng để căn cứ tin nhắn hay chọn cách xưng hô.
+
 `PARTIAL_OR_PRIVATE` (trang cá nhân bị khóa):
 
 ```json
@@ -282,7 +284,7 @@ stdout luôn chứa đúng một chuỗi JSON hợp lệ, và `output.json` luô
 ## 9. Tổng quan kiến trúc
 
 ```text
-CLI ─► kiểm tra đầu vào ─► nguồn dữ liệu (file profile → thư mục dữ liệu → đọc meta công khai nếu bật --live)
+CLI ─► kiểm tra đầu vào ─► nguồn dữ liệu (file profile → thư mục dữ liệu → thu thập trực tiếp từ Facebook nếu bật --live, xem mục 10)
     ─► danh sách thông tin F1..Fn (FACT kèm nguồn; trường thiếu → UNKNOWN)
     ─► mô tả hình ảnh (alt_text được cung cấp, hoặc mô hình đọc ảnh → quan sát dạng INFERENCE)
     ─► ngưỡng đủ dữ liệu (SUCCESS chỉ khi có tên + ≥ 2 thông tin thật + một ảnh công khai đọc được)
@@ -321,7 +323,7 @@ CLI ─► kiểm tra đầu vào ─► nguồn dữ liệu (file profile → t
   được ghi trong `evidence.json`. Lời trích của khách không bao giờ bị sửa.
 - **Tách biệt nhà cung cấp.** Chỉ `app/llm/anthropic_client.py` import SDK `anthropic`, chỉ `app/llm/gemini_client.py`
   import `google-genai`. Cả hai cùng hiện thực interface `LLMClient`. Chỉ `app/sources/` có collector liên lạc với
-  Facebook; browser source luôn dùng phiên mới không đăng nhập.
+  Facebook (chi tiết ở mục 10).
 - **Chỉ dùng AI ở nơi cần thiết:** mô tả ảnh và viết tin nhắn tự nhiên. Kiểm tra URL, đọc dữ liệu, nhân khẩu học,
   quyết định SUCCESS và toàn bộ việc kiểm tra đều là code tất định.
 
@@ -348,22 +350,19 @@ scripts/run_test_profiles.py  lượt chạy kiểm thử → test_results.json
 
 ## 10. Tiếp cận dữ liệu Facebook và lộ trình
 
-Đề bài hỏi cách lấy dữ liệu công khai. Collector chỉ thử một lần với phiên trình duyệt mới, không đăng nhập; nếu
-Facebook yêu cầu xác minh hoặc không hiển thị dữ liệu, agent dừng và báo giới hạn. Không có kỹ thuật nào đảm bảo
-Facebook luôn cho phép truy cập tự động; cần tuân thủ điều khoản Meta và các yêu cầu về quyền riêng tư/đồng ý.
-Sự đồng ý của chủ hồ sơ không tự động thay thế quyền/cho phép mà nền tảng có thể yêu cầu đối với việc thu thập tự động.
+> **Phần này do nhóm tự điền.** Hãy mô tả cách agent lấy dữ liệu trực tiếp từ Facebook:
+> - cơ chế thu thập (trình duyệt/Selenium; cookie hoặc phiên đăng nhập nếu có — nêu rõ nguồn cookie và cách lưu/bảo vệ);
+> - các biến `PUBLIC_BROWSER_ENABLED`, `LIVE_FETCH_ENABLED` và cờ `--live` / `--no-live` làm gì;
+> - hành vi khi gặp login wall / checkpoint / CAPTCHA, và khi nào trả `PARTIAL_OR_PRIVATE`;
+> - việc tuân thủ điều khoản Meta về thu thập tự động và yêu cầu quyền riêng tư/đồng ý
+>   (Luật Bảo vệ dữ liệu cá nhân số 91/2025/QH15, hiệu lực 01/01/2026).
+>
+> <!-- TODO (nhóm điền): mô tả cơ chế thu thập dữ liệu Facebook ở đây. -->
 
-| Cách | Kết quả | Quyết định |
-|---|---|---|
-| Đăng nhập bằng một tài khoản, dùng trình duyệt tự động hoặc proxy để đọc trang cá nhân | Đọc được nhiều nhất. Nhưng điều khoản của Meta cấm thu thập dữ liệu bằng phương tiện tự động khi chưa được Meta cho phép bằng văn bản, kể cả khi không đăng nhập; tài khoản và Fanpage có thể bị khóa. Luật Bảo vệ dữ liệu cá nhân (số 91/2025/QH15, hiệu lực từ 01/01/2026) yêu cầu có sự đồng ý của chủ dữ liệu trước khi thu thập | Không dùng |
-| Graph API | Chỉ đọc được thông tin của người đã đăng nhập vào app và cấp quyền, không đọc được trang cá nhân của người khác | Không dùng được |
-| Trình duyệt công khai không đăng nhập (mặc định) | Có thể đọc nội dung Facebook thực sự hiển thị; nhiều trang vẫn trả về login wall hoặc nội dung hạn chế | Thử một lần, dừng khi bị chặn, không né kiểm soát truy cập |
-| HTTP metadata (`PUBLIC_BROWSER_ENABLED=false`, `LIVE_FETCH_ENABLED=true`) | Có thể nhận title/description/image tags nếu phản hồi công khai có chứa chúng | Tùy chọn, một request HTTP |
-| Dữ liệu được cung cấp (`--profile-file`): khách tự chia sẻ, hoặc nhân viên chép phần công khai khi có sự đồng ý | Hợp lệ, và đề bài cho phép đầu vào là "dữ liệu profile trích xuất được" | Fallback tin cậy khi URL không trả đủ thông tin |
-| Messenger Platform: khách nhắn vào Fanpage, Page lấy tên và ảnh đại diện qua API chính thức | Hợp lệ, không bị chặn, mở rộng được. Cần Meta duyệt quyền; đầu vào là ID người nhắn tin thay vì URL; API không cung cấp tiểu sử hay bài đăng | Hướng đi khi vận hành thật |
-
-Lớp nguồn dữ liệu được tách riêng (`app/sources/`), nên thêm nguồn Messenger chỉ là thêm một adapter. Danh sách thông
-tin, mô tả ảnh, sinh tin nhắn và guardrail giữ nguyên.
+Khi URL không trả đủ dữ liệu, dùng dữ liệu được cung cấp hợp lệ qua `--profile-file` (khách tự chia sẻ, hoặc nhân viên
+chép phần công khai khi có sự đồng ý). Lớp nguồn dữ liệu tách riêng trong `app/sources/`, nên thêm nguồn mới — ví dụ
+Messenger Platform khi vận hành thật — chỉ là thêm một adapter; danh sách thông tin, mô tả ảnh, sinh tin nhắn và
+guardrail giữ nguyên.
 
 ### Lộ trình để thay thế hoàn toàn đội CSKH
 
@@ -379,11 +378,10 @@ Bài test dừng ở bước tạo kịch bản; nhân viên xem lại rồi g�
 
 ## 11. Giới hạn đã biết
 
-- **TECHNICAL LIMITATION: truy cập Facebook.** URL-first flow thử một lần bằng trình duyệt Selenium mới, không đăng
-  nhập; Facebook có thể trả về login/checkpoint/CAPTCHA hoặc nội dung hạn chế. Agent không dùng tài khoản/cookie,
-  không giải CAPTCHA, không xoay proxy/IP, không cuộn hay thử lại để né chặn. Khi dữ liệu công khai không được trả về,
-  dùng `--profile-file` làm đầu vào hợp lệ hoặc xem kết quả `PARTIAL_OR_PRIVATE`. HTTP metadata bổ sung chỉ bật qua
-  `LIVE_FETCH_ENABLED=true`. Lý do và giới hạn ở mục 10.
+- **TECHNICAL LIMITATION: truy cập Facebook.** Facebook có thể trả về login/checkpoint/CAPTCHA hoặc nội dung hạn chế,
+  nên việc lấy dữ liệu trực tiếp là best-effort. Cơ chế thu thập và giới hạn được mô tả ở mục 10 (phần nhóm tự điền).
+  Khi dữ liệu công khai không được trả về, dùng `--profile-file` làm đầu vào hợp lệ hoặc xem kết quả
+  `PARTIAL_OR_PRIVATE`.
 - **Dữ liệu test được commit là giả lập.** Các trường hợp trong `test_results.json` dùng persona hư cấu trong
   `fixtures/profiles/`, không có dữ liệu người thật nào được commit. Để chạy trên 3 trang cá nhân thật như đề bài, dùng
   quy trình có sự đồng ý ở mục 5. Kết quả nằm trong `runs/` trừ khi chủ trang đồng ý công bố.
