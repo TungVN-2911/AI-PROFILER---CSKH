@@ -23,12 +23,20 @@ CATEGORY_ORDER = ("post", "interest", "bio", "work", "education", "location", "v
 
 # Templates use {you}/{You} (customer) and {me}/{Me} (agent) from `Addressing`; {s} is the quoted fact text,
 # inserted last so that braces or pronouns inside the customer's own words are never altered.
+# Open, claim-free questions. The sequence shows only a few of these; which ones is rotated per profile
+# (see `generate_deterministic`) so different customers are not all sent the identical opener.
 NEUTRAL_QUESTIONS = (
     "Dạo này có điều gì nhỏ nhỏ khiến {you} mỉm cười không{q}?",
     "Cuối tuần {you} thường dành thời gian cho điều gì để nạp lại năng lượng{q}?",
     "Nếu có cuốn sách hay bộ phim nào {you} thấy đáng xem, {you} giới thiệu cho {me} với được không{q}?",
-    "{Me} luôn ở đây lắng nghe nếu {you} muốn chia sẻ thêm bất cứ điều gì.",
+    "Có điều gì gần đây khiến {you} thấy háo hức mà muốn kể cho {me} nghe không{q}?",
+    "{Me} tò mò điều gì thường khiến một ngày của {you} trở nên dễ chịu hơn{q}?",
+    "Nếu kể cho {me} nghe một niềm vui nhỏ gần đây, {you} sẽ chọn điều gì{q}?",
+    "Dạo này {you} có tìm thấy điều gì mới mẻ nho nhỏ nào không{q}?",
 )
+# How many neutral questions a short sequence may be padded with. Kept separate from the pool size above
+# so enriching the pool adds variety without making sequences longer.
+NEUTRAL_PAD = 4
 CLOSING = "Trò chuyện cùng {you} thật sự là niềm vui của {me}. Chúc {you} một ngày thật nhẹ nhàng và nhiều niềm vui nhé!"
 GREETING_NEUTRAL = "Chào {name}, mình rất vui được làm quen với bạn!"
 GREETING_POLITE = "{Me} chào {you} {name}, {me} rất vui được làm quen với {you} ạ!"
@@ -220,7 +228,7 @@ def generate_deterministic(
         # The avatar is already acknowledged in the greeting; do not repeat it as a separate message.
         candidates = [(f, t) for f, t in candidates if f.id not in greeting.fact_ids]
     grounded_greeting = 1 if greeting is not None else 0
-    neutral_pool = len(NEUTRAL_QUESTIONS) + 2  # greeting + questions + closing
+    neutral_pool = NEUTRAL_PAD + 2  # greeting + padded questions + closing
     g_available = len(candidates)
     n = min(max(target_count, MIN_MESSAGES), MAX_MESSAGES, g_available + neutral_pool)
     if len(ledger.usable_facts()) >= 3:
@@ -240,7 +248,13 @@ def generate_deterministic(
         greeting = DraftMessage(text=greeting_text, kind="neutral", fact_ids=[name.id] if name else [])
     extras = neutral_needed - 1
     closing = [DraftMessage(text=_fill(CLOSING, addressing), kind="neutral")] if extras >= 1 else []
-    questions = [DraftMessage(text=_fill(q, addressing), kind="neutral") for q in NEUTRAL_QUESTIONS[: max(extras - 1, 0)]]
+    # Rotate the question pool by a stable property of the profile: same input always yields the same
+    # sequence, but two different customers rarely get the same opener. `want` never exceeds the pool,
+    # so the chosen questions are always distinct (no duplicate-message violation).
+    want = max(extras - 1, 0)
+    start = len(ledger.usable_facts()) % len(NEUTRAL_QUESTIONS)
+    chosen = [NEUTRAL_QUESTIONS[(start + i) % len(NEUTRAL_QUESTIONS)] for i in range(min(want, len(NEUTRAL_QUESTIONS)))]
+    questions = [DraftMessage(text=_fill(q, addressing), kind="neutral") for q in chosen]
     grounded = [DraftMessage(text=text, kind="grounded", fact_ids=[fact.id]) for fact, text in candidates[:g]]
 
     # Interleave: a neutral question after every three grounded messages.
