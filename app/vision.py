@@ -5,6 +5,9 @@ Two paths:
 - No alt text: one image is described by the vision model. Observations are model-generated, so they are
   stored as INFERENCE with their confidence: they appear in `visual_context` but are never used to ground
   rapport messages or demographics.
+The model may also return one overall "impression" sentence — the single meaningful takeaway about the photo's
+mood or setting. It is screened for sensitive attributes and appended to `visual_context`, but, like the
+observations' interpretation, it is never added to the ledger, so it cannot ground a message.
 Every description is screened for sensitive attributes. Any failure yields `NOT_AVAILABLE: <reason>`.
 """
 
@@ -52,6 +55,11 @@ Rules:
 - Do NOT guess the person's job, income, personality or life situation.
 - Give at most 5 observations, each with a confidence between 0 and 1. Omit anything you are unsure about.
 - If the image is blank, unreadable, a logo/default avatar, or shows nothing describable, set image_usable to false.
+
+Required field "impression": one short Vietnamese sentence (starting with "Ảnh có vẻ") giving the overall
+impression the photo conveys — its mood, energy, style or setting — grounded in what is visible. This is the
+one meaningful takeaway, not a list of objects. Obey every sensitive-attribute rule above; use null if nothing
+safe can be said.
 
 Required separate field "estimate" (never mention any of this in the observations):
 - Always return the "estimate" key. Use null only when the image is unusable.
@@ -121,13 +129,16 @@ def extract_visual_context(
         ledger, estimate_ids, estimate_notes = _apply_estimate(ledger, vision.estimate, image.kind)
         notes += estimate_notes
 
+    # One grounded, non-sensitive takeaway about what the photo conveys. It enriches visual_context but is
+    # never added to the ledger, so it can never ground a rapport message or a form of address.
+    impression = _screen_impression(vision, notes)
+
     if kept_alt:
         if vision_error:
             notes.append(f"bỏ qua ước lượng từ ảnh: {vision_error}")
         text = "; ".join(f.statement for f in kept_alt)
-        return VisualContextResult(
-            f"MÔ TẢ ẢNH (từ dữ liệu được cung cấp): {text}", ledger, [f.id for f in kept_alt], notes, estimate_ids
-        )
+        context = f"MÔ TẢ ẢNH (từ dữ liệu được cung cấp): {text}{_impression_suffix(impression)}"
+        return VisualContextResult(context, ledger, [f.id for f in kept_alt], notes, estimate_ids)
 
     if image is None:
         if rejected:
@@ -169,13 +180,31 @@ def extract_visual_context(
         )
         fact_ids.append(fact.id)
     joined = "; ".join(text for text, _ in accepted)
-    return VisualContextResult(
-        f"QUAN SÁT ẢNH BẰNG AI ({IMAGE_KIND_VI.get(image.kind, image.kind)}; do mô hình tạo, chưa kiểm chứng): {joined}",
-        ledger,
-        fact_ids,
-        notes,
-        estimate_ids,
+    context = (
+        f"QUAN SÁT ẢNH BẰNG AI ({IMAGE_KIND_VI.get(image.kind, image.kind)}; do mô hình tạo, chưa kiểm chứng): "
+        f"{joined}{_impression_suffix(impression)}"
     )
+    return VisualContextResult(context, ledger, fact_ids, notes, estimate_ids)
+
+
+def _screen_impression(vision: object | None, notes: list[str]) -> str | None:
+    """Accept the model's overall-impression sentence only if it is safe (no sensitive attribute or contact)."""
+    text = getattr(vision, "impression", None)
+    if not vision or not getattr(vision, "image_usable", False) or not text:
+        return None
+    text = _normalize_observation_text(text.strip())
+    hits = find_sensitive(text)
+    if hits:
+        notes.append("đã loại nhận xét ảnh (thuộc tính nhạy cảm: " + ", ".join(f"{c}={t}" for c, t in hits) + ").")
+        return None
+    if EMAIL_PATTERN.search(text) or PHONE_PATTERN.search(text) or URL_PATTERN.search(text):
+        notes.append("đã loại nhận xét ảnh (có thể chứa thông tin liên hệ hoặc URL).")
+        return None
+    return text
+
+
+def _impression_suffix(impression: str | None) -> str:
+    return f" | Ấn tượng tổng thể (AI, chưa kiểm chứng): {impression}" if impression else ""
 
 
 def _apply_estimate(

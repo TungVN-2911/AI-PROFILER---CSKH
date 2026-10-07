@@ -202,6 +202,55 @@ def test_local_image_problems(tmp_path, images, fragment):
     assert fake.calls == []
 
 
+# --- Overall impression -------------------------------------------------------------------------
+
+
+def test_impression_is_appended_to_ai_description(tmp_path):
+    fake = FakeLLMClient(vision_responses=[{
+        "image_usable": True,
+        "observations": [obs("appears to show a person on a mountain trail")],
+        "impression": "Ảnh có vẻ toát lên tinh thần năng động, gần gũi với thiên nhiên.",
+        "estimate": None,
+    }])
+    result = extract_visual_context(local_image_profile(tmp_path), build_ledger(raw()), fake, base_dir=tmp_path)
+    assert "Ấn tượng tổng thể (AI, chưa kiểm chứng): Ảnh có vẻ toát lên tinh thần năng động" in result.visual_context
+    # The impression enriches the text but is never a ledger fact, so it cannot ground a message.
+    assert all("năng động" not in result.ledger.get(fid).statement for fid in result.fact_ids)
+
+
+def test_impression_appended_to_provided_alt_text(tmp_path):
+    (tmp_path / "a.png").write_bytes(PNG)
+    profile = raw(images=[{"kind": "avatar", "path": "a.png", "alt_text": "Ảnh đại diện có vẻ cho thấy một người cầm ô"}])
+    fake = FakeLLMClient(vision_responses=[{
+        "image_usable": True, "observations": [obs("appears to show a red umbrella")],
+        "impression": "Ảnh có vẻ gợi cảm giác nhẹ nhàng, thư thái.", "estimate": None,
+    }])
+    result = extract_visual_context(profile, build_ledger(profile), fake, base_dir=tmp_path)
+    assert result.visual_context.startswith("MÔ TẢ ẢNH (từ dữ liệu được cung cấp):")
+    assert "Ấn tượng tổng thể (AI, chưa kiểm chứng): Ảnh có vẻ gợi cảm giác nhẹ nhàng" in result.visual_context
+
+
+def test_sensitive_impression_is_dropped(tmp_path):
+    fake = FakeLLMClient(vision_responses=[{
+        "image_usable": True, "observations": [obs("appears to show a guitar")],
+        "impression": "Ảnh có vẻ cho thấy một gia đình hạnh phúc.", "estimate": None,
+    }])
+    result = extract_visual_context(local_image_profile(tmp_path), build_ledger(raw()), fake, base_dir=tmp_path)
+    assert "Ấn tượng tổng thể" not in result.visual_context
+    assert "gia đình" not in result.visual_context
+    assert any("đã loại nhận xét ảnh" in n for n in result.notes)
+
+
+def test_impression_with_contact_is_dropped_without_echo(tmp_path):
+    fake = FakeLLMClient(vision_responses=[{
+        "image_usable": True, "observations": [obs("appears to show a guitar")],
+        "impression": "Liên hệ 0912345678 để biết thêm.", "estimate": None,
+    }])
+    result = extract_visual_context(local_image_profile(tmp_path), build_ledger(raw()), fake, base_dir=tmp_path)
+    assert "Ấn tượng tổng thể" not in result.visual_context
+    assert "0912345678" not in result.visual_context and "0912345678" not in " ".join(result.notes)
+
+
 # --- Image URL ----------------------------------------------------------------------------------
 
 
